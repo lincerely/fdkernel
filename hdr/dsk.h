@@ -27,5 +27,16 @@
 
 
 #ifndef MAX_SEC_SIZE
+# if defined(NEC98)
+#define MAX_SEC_SIZE    (4*512) /* max supported size of sector in bytes */
+# else
 #define MAX_SEC_SIZE    (1*512) /* max supported size of sector in bytes */
+# endif
 #endif
+
+#if defined(NEC98)
+#define LBA_CYLINDER_MAX  65535UL
+#else
+#define LBA_CYLINDER_MAX  1023UL
+#endif
+

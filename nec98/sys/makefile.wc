@@ -1,0 +1,68 @@
+#
+# makefile for bin2c.exe and sys.com
+#
+# $Id: makefile 1482 2009-07-11 16:59:43Z perditionc $
+#
+
+!include "../mkfiles/generic.mak"
+
+BASEDIR=..$(DIRSEP)..$(DIRSEP)
+HDRD=$(BASEDIR)hdr$(DIRSEP)
+KSRCD=$(BASEDIR)kernel$(DIRSEP)
+SRCD=$(BASEDIR)sys$(DIRSEP)
+#SRCD=.$(DIRSEP)
+
+CFLAGS = -I$(INCLUDEPATH) -I$(BASEDIR)hdr -DFORSYS -DWITHFAT32 $(CFLAGST) $(CFLAGS_PLATFORM) -DFOR_NEC98
+NASMFLAGS = -DSYS=1 $(NASMFLAGS_PLATFORM) -DFOR_NEC98
+
+#		*List Macros*
+
+SYS_EXE_dependencies =  \
+ sys.obj \
+ fdkrncfg.obj \
+ prf.obj \
+ talloc.obj
+
+#		*Explicit Rules*
+production:     bin2c.exe ../bin/sys.com
+
+bin2c.exe: $(BASEDIR)sys$(DIRSEP)bin2c.c
+		$(CLC) $[@
+
+../bin/sys.com: sys.com
+		$(CP) sys.com ..$(DIRSEP)bin
+
+b_fat12.h:	../boot/b_fat12.bin bin2c.exe
+	.$(DIRSEP)bin2c.exe ../boot/b_fat12.bin b_fat12.h b_fat12
+
+b_fat12f.h:	../boot/b_fat12f.bin bin2c.exe
+	.$(DIRSEP)bin2c.exe ../boot/b_fat12f.bin b_fat12f.h b_fat12f
+
+b_fat16.h:	../boot/b_fat16.bin bin2c.exe
+	.$(DIRSEP)bin2c.exe ../boot/b_fat16.bin b_fat16.h b_fat16
+
+
+prf.obj:	$(KSRCD)prf.c
+		$(CC) $(CFLAGS) $[@
+
+fdkrncfg.obj:   $(SRCD)fdkrncfg.c $(HDRD)kconfig.h
+	$(CC) $(CFLAGS) $[@
+
+talloc.obj:     $(SRCD)talloc.c
+	$(CC) $(CFLAGS) $[@
+
+sys.com:        $(SYS_EXE_dependencies)
+		$(CL) -zq-bt=DOS $(TINY) -fe=$^@ $(SYS_EXE_dependencies)
+#		$(CL) $(CFLAGST) $(TINY) -fe=$^@ $(SYS_EXE_dependencies)
+
+clobber:	clean
+		-$(RM) bin2c.exe sys.com b_fat*.h fat*.h oemfat*.h
+
+clean:
+		-$(RM) *.obj *.bak *.crf *.xrf *.map *.lst *.las *.cod *.err status.me
+		-$(RM) *.o
+
+#		*Individual File Dependencies*
+sys.obj: .$(DIRSEP)sys.c $(HDRD)portab.h $(HDRD)device.h b_fat12.h b_fat12f.h b_fat16.h
+		$(CC) $(CFLAGS) $[@
+

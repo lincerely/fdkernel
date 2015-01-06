@@ -1,0 +1,23 @@
+!include "../mkfiles/generic.mak"
+
+HDRD=..$(DIRSEP)..$(DIRSEP)hdr$(DIRSEP)
+SRCD=..$(DIRSEP)..$(DIRSEP)utils$(DIRSEP)
+
+CFLAGS = -I..$(DIRSEP)..$(DIRSEP)hdr
+
+production: patchobj.com exeflat.exe
+
+patchobj.com: $(SRCD)patchobj.c
+	$(CLT) $(CFLAGS) $[@
+
+exeflat.exe: $(SRCD)exeflat.c $(HDRD)exe.h
+	$(CLC) $(CFLAGS) $[@
+
+
+clobber: clean
+
+clean:
+	-$(RM) *.obj *.bak *.crf *.xrf *.map *.lst *.las *.cod *.err status.me
+	-$(RM) *.o
+	-$(RM) exeflat.exe patchobj.com patchobj.exe
+

@@ -1,10 +1,10 @@
 /****************************************************************/
 /*                                                              */
-/*                          version.h                           */
+/*                          initoem.c                           */
 /*                                                              */
-/*                  Common version information                  */
+/*                  OEM Initializattion Functions               */
 /*                                                              */
-/*                      Copyright (c) 1997                      */
+/*                      Copyright (c) 1995                      */
 /*                      Pasquale J. Villani                     */
 /*                      All Rights Reserved                     */
 /*                                                              */
@@ -24,55 +24,61 @@
 /* License along with DOS-C; see the file COPYING.  If not,     */
 /* write to the Free Software Foundation, 675 Mass Ave,         */
 /* Cambridge, MA 02139, USA.                                    */
+/*                                                              */
 /****************************************************************/
 
+#include "portab.h"
+#include "init-mod.h"
+
+#ifdef VERSION_STRINGS
+static BYTE *RcsId =
+    "$Id: initoem.c 1321 2007-05-21 02:16:36Z bartoldeman $";
+#endif
+
 #if defined(NEC98)
-#define TARGET_PLATFORM "PC-98x1"
-#define FREEDOS_NAME "FreeDOS(98)"
-#endif
+#define init_oem_nec98  init_oem
+unsigned init_oem_nec98(void)
+{
+  return ((*(UBYTE FAR *)MK_FP(0, 0x0501) & 7) + 1) * 128;
+}
 
+#elif defined(IBMPC)
+#define EBDASEG 0x40e
+#define RAMSIZE 0x413
 
-#ifndef TARGET_PLATFORM_FOR
-#ifdef TARGET_PLATFORM
-#define TARGET_PLATFORM_FOR  " for " TARGET_PLATFORM
+unsigned init_oem(void)
+{
+  iregs r;
+  init_call_intr(0x12, &r);
+  return r.a.x;
+}
+
+void movebda(size_t bytes, unsigned new_seg)
+{
+  unsigned old_seg = peek(0, EBDASEG);
+  fmemcpy(MK_FP(new_seg, 0), MK_FP(old_seg, 0), bytes);
+  poke(0, EBDASEG, new_seg);
+  poke(0, RAMSIZE, ram_top);
+}
+
+unsigned ebdasize(void)
+{
+  unsigned ebdaseg = peek(0, EBDASEG);
+  unsigned ramsize = ram_top;
+
+  if (ramsize == peek(0, RAMSIZE))
+    if (ramsize * 64 == ebdaseg && ramsize < 640 && peek(0, RAMSIZE) == ramsize)
+    {
+    unsigned ebdasz = peekb(ebdaseg, 0);
+
+    /* sanity check: is there really no more than 63 KB?
+     * must be at 640k (all other values never seen and are untested)
+     */
+    if (ebdasz <= 63 && ramsize + ebdasz == 640)
+      return ebdasz * 1024U;
+    }
+  return 0;
+}
 #else
-#define TARGET_PLATFORM_FOR  ""
+#error need platform specific init_oem()
 #endif
-#endif
-
-#ifndef FREEDOS_NAME
-#define FREEDOS_NAME  "FreeDOS"
-#endif
-
-/* The version the kernel reports as compatible with */
-#ifdef WITHFAT32
-#define MAJOR_RELEASE   7
-#define MINOR_RELEASE   10
-#else
-#define MAJOR_RELEASE   6
-# if defined(NEC98)
-   /* DOS 6.20 for NEC PC-98x1, just for a proof... */
-#  define MINOR_RELEASE   20
-# else
-#  define MINOR_RELEASE   22
-# endif
-#endif
-
-/* The actual kernel revision, 2000+REVISION_SEQ = 2.REVISION_SEQ */
-#define REVISION_SEQ    42      /* returned in BL by int 21 function 30 */
-#define OEM_ID          0xfd    /* FreeDOS, returned in BH by int 21 30 */
-
-/* Used for version information displayed to user at boot (& stored in os_release string) */
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION "- SVN "
-#endif
-
-/* actual version string */
-#if 1
-#define KVS(v,s,o) FREEDOS_NAME " kernel " v "(build 20" #s " OEM:" #o ") [compiled " __DATE__ "]\n"
-#else
-#define KVS(v,s,o) "FreeDOS kernel " v "(build 20" #s " OEM:" #o ")" TARGET_PLATFORM_FOR " [compiled " __DATE__ "]\n"
-#endif
-#define xKVS(v,s,o) KVS(v,s,o)
-#define KERNEL_VERSION_STRING xKVS(KERNEL_VERSION, REVISION_SEQ, OEM_ID)
-

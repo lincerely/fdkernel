@@ -1,0 +1,264 @@
+#
+# Makefile for kernel.sys  (originally for Borland C/C++ 3.1)
+# now for OpenWatcom's wmake
+#
+
+!include "../mkfiles/generic.mak"
+
+BASEDIR=..$(DIRSEP)..$(DIRSEP)
+HDRD=$(BASEDIR)hdr$(DIRSEP)
+KSRCD=$(BASEDIR)kernel$(DIRSEP)
+UKSRCD=.$(DIRSEP)
+UTILSD=..$(DIRSEP)utils$(DIRSEP)
+LIBD=..$(DIRSEP)lib$(DIRSEP)
+LIBS=$(LIBD)device.lib $(LIBD)libm.lib
+
+ASSEMBLE=$(NASM) -D$(COMPILER) $(NASMFLAGS) -i $(UKSRCD) -i $(KSRCD) -f obj -o $^@ $[@
+COMPILECC=$(CC) $(CFLAGS) -I$(KSRCD) $[@
+INITCFLAGS=$(INITCFLAGS) -I$(KSRCD) 
+
+# *List Macros*
+# Only 8 files per definition; this is limitation of DOS batch
+# files (only 9 directly accessible parameters).
+
+OBJS1=kernel.obj entry.obj io.obj console.obj serial.obj printer.obj dsk.obj \
+sysclk.obj
+OBJS2=asmsupt.obj execrh.obj nlssupt.obj procsupt.obj dosidle.obj int2f.obj \
+nls_hc.obj
+OBJS3=apisupt.obj intr.obj irqstack.obj blockio.obj chario.obj systime.obj \
+error.obj
+OBJS4=break.obj dosfns.obj fatdir.obj fatfs.obj fattab.obj fcbfns.obj \
+inthndlr.obj
+OBJS5=ioctl.obj memmgr.obj task.obj newstuff.obj nls.obj network.obj
+OBJS6=prf.obj misc.obj strings.obj syspack.obj lfnapi.obj iasmsupt.obj memdisk.obj
+OBJS7=main.obj config.obj initoem.obj inithma.obj dyninit.obj iprf.obj
+OBJS8=initdisk.obj initclk.obj cpu.obj
+OBJS=$(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(OBJS5) $(OBJS6) $(OBJS7) $(OBJS8)
+
+TARGET_LNK = $(TARGET).rsp
+
+#               *Explicit Rules*
+
+production:     ../bin/$(TARGET).sys ../bin/country.sys
+
+../bin/$(TARGET).sys: kernel.sys
+		$(CP) kernel.sys ..$(DIRSEP)bin
+		$(CP) kernel.sys ..$(DIRSEP)bin$(DIRSEP)$(TARGET).sys
+		$(CP) kernel.map ..$(DIRSEP)bin$(DIRSEP)$(TARGET).map
+
+# -S to avoid showing expected relocations
+# 0x10 & 0x78 or 0x79 depending on compilation options
+kernel.sys:	kernel.exe $(UTILSD)exeflat.exe
+		$(UTILSD)exeflat.exe kernel.exe kernel.sys $(LOADSEG) -S0x10 -S0x78 -S0x79 $(UPXOPT) $(XUPX)
+
+kernel.exe:	$(TARGET_LNK) $(OBJS) $(LIBS)
+		$(LINK) @$(TARGET_LNK);
+
+../bin/country.sys: $(KSRCD)country.asm
+		$(NASM) -o $^@ $[@
+
+clobber:        clean
+		-$(RM) kernel.exe kernel.sys kernel.sym status.me
+
+clean:
+		-$(RM) $(TARGET_LNK)
+		-$(RM) *.obj *.bak *.crf *.xrf *.map *.lst *.cod *.err
+
+# XXX: This is a very ugly way of linking the kernel, forced upon us by the
+# inability of Turbo `make' 2.0 to perform command line redirection. -- ror4
+
+#$(TARGET_LNK): turboc.cfg makefile.wc ../mkfiles/generic.mak ../mkfiles/$(COMPILER).mak
+$(TARGET_LNK): makefile.wc ../mkfiles/generic.mak ../mkfiles/$(COMPILER).mak
+		-$(RM) $(TARGET_LNK)
+		$(ECHOTO) $(TARGET_LNK) $(OBJS1)+
+		$(ECHOTO) $(TARGET_LNK) $(OBJS2)+
+		$(ECHOTO) $(TARGET_LNK) $(OBJS3)+
+		$(ECHOTO) $(TARGET_LNK) $(OBJS4)+
+		$(ECHOTO) $(TARGET_LNK) $(OBJS5)+
+		$(ECHOTO) $(TARGET_LNK) $(OBJS6)+
+		$(ECHOTO) $(TARGET_LNK) $(OBJS7)+
+		$(ECHOTO) $(TARGET_LNK) $(OBJS8)
+		$(ECHOTO) $(TARGET_LNK) kernel.exe
+		$(ECHOTO) $(TARGET_LNK) kernel.map
+		$(ECHOTO) $(TARGET_LNK) $(LIBS)
+
+#               *Individual File Dependencies*
+apisupt.obj:	$(KSRCD)apisupt.asm $(KSRCD)segs.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+asmsupt.obj:	$(KSRCD)asmsupt.asm $(KSRCD)segs.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+console.obj:	$(KSRCD)console.asm $(KSRCD)io.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+cpu.obj:	$(KSRCD)cpu.asm  $(KSRCD)segs.inc $(TARGET_LNK)
+	$(ASSEMBLE)
+
+dosidle.obj:	$(KSRCD)dosidle.asm $(KSRCD)segs.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+entry.obj:	$(KSRCD)entry.asm $(KSRCD)segs.inc $(HDRD)stacks.inc	$(TARGET_LNK)
+	$(ASSEMBLE)
+
+execrh.obj:	$(KSRCD)execrh.asm  $(KSRCD)segs.inc 			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+int2f.obj:	$(KSRCD)int2f.asm   $(KSRCD)segs.inc $(HDRD)stacks.inc	$(TARGET_LNK)
+	$(ASSEMBLE)
+
+intr.obj:	$(KSRCD)intr.asm    $(KSRCD)segs.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+io.obj:		$(KSRCD)io.asm	    $(KSRCD)segs.inc $(HDRD)stacks.inc   $(TARGET_LNK)
+	$(ASSEMBLE)
+
+irqstack.obj:   $(KSRCD)irqstack.asm $(KSRCD)segs.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+kernel.obj:	$(KSRCD)kernel.asm  $(KSRCD)segs.inc $(KSRCD)ludivmul.inc 	$(TARGET_LNK)
+	$(ASSEMBLE)
+
+memdisk.obj:	$(KSRCD)memdisk.asm  $(KSRCD)segs.inc $(TARGET_LNK)
+	$(ASSEMBLE)
+
+nls_hc.obj:	$(KSRCD)nls_hc.asm  $(KSRCD)segs.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+nlssupt.obj:	$(KSRCD)nlssupt.asm $(KSRCD)segs.inc $(HDRD)stacks.inc   $(TARGET_LNK)
+	$(ASSEMBLE)
+
+printer.obj:	$(KSRCD)printer.asm $(KSRCD)io.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+procsupt.obj:	$(KSRCD)procsupt.asm $(KSRCD)segs.inc $(HDRD)stacks.inc  $(TARGET_LNK)
+	$(ASSEMBLE)
+
+serial.obj:	$(KSRCD)serial.asm  $(KSRCD)io.inc			$(TARGET_LNK)
+	$(ASSEMBLE)
+
+
+HDRS=\
+    $(HDRD)portab.h $(HDRD)device.h $(HDRD)mcb.h $(HDRD)pcb.h \
+    $(HDRD)fat.h $(HDRD)fcb.h $(HDRD)tail.h $(HDRD)time.h $(HDRD)process.h \
+    $(HDRD)dcb.h $(HDRD)sft.h $(HDRD)cds.h $(HDRD)exe.h $(HDRD)fnode.h     \
+    $(HDRD)dirmatch.h $(HDRD)file.h $(HDRD)clock.h $(HDRD)kbd.h $(HDRD)error.h  \
+    $(HDRD)version.h $(KSRCD)dyndata.h
+HEADERS=$(HDRS) $(KSRCD)globals.h $(KSRCD)proto.h
+INITHEADERS=$(HDRS) $(KSRCD)init-mod.h $(KSRCD)init-dat.h
+
+blockio.obj: $(KSRCD)blockio.c    $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+break.obj: $(KSRCD)break.c        $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+chario.obj: $(KSRCD)chario.c      $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+dosfns.obj: $(KSRCD)dosfns.c      $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+dsk.obj: $(KSRCD)dsk.c            $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+error.obj: $(KSRCD)error.c        $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+fatdir.obj: $(KSRCD)fatdir.c      $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+fatfs.obj: $(KSRCD)fatfs.c        $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+fattab.obj: $(KSRCD)fattab.c      $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+fcbfns.obj: $(KSRCD)fcbfns.c      $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+inthndlr.obj: $(KSRCD)inthndlr.c  $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+ioctl.obj: $(KSRCD)ioctl.c        $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+memmgr.obj: $(KSRCD)memmgr.c      $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+misc.obj: $(KSRCD)misc.c          $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+lfnapi.obj: $(KSRCD)lfnapi.c      $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+newstuff.obj: $(KSRCD)newstuff.c  $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+network.obj: $(KSRCD)network.c    $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+nls.obj: $(KSRCD)nls.c            $(HEADERS) $(TARGET_LNK)  
+	$(COMPILECC)
+
+prf.obj: $(KSRCD)prf.c  $(HDRD)portab.h $(TARGET_LNK)  
+	$(COMPILECC)
+
+strings.obj: $(KSRCD)strings.c  $(TARGET_LNK)  
+	$(COMPILECC)
+
+sysclk.obj: $(KSRCD)sysclk.c    $(HEADERS) $(TARGET_LNK)
+	$(COMPILECC)
+
+syspack.obj: $(KSRCD)syspack.c  $(HEADERS) $(TARGET_LNK)
+	$(COMPILECC)
+
+systime.obj: $(KSRCD)systime.c  $(HEADERS) $(TARGET_LNK)
+	$(COMPILECC)
+
+task.obj: $(KSRCD)task.c        $(HEADERS) $(TARGET_LNK)
+	$(COMPILECC)
+
+# now the funny stuff :-)
+# Files in the INIT segment
+
+# XXX: Special handling for initialization modules -- this is required because
+# TC 2.01 cannot handle `#pragma option' like TC 3 can. -- ror4
+
+config.obj:   $(KSRCD)config.c  $(INITHEADERS) $(TARGET_LNK)  
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+
+initoem.obj:  $(KSRCD)initoem.c  $(INITHEADERS) $(TARGET_LNK)  
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+
+main.obj:     $(KSRCD)main.c  $(INITHEADERS) $(TARGET_LNK) 
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+
+inithma.obj:  $(KSRCD)inithma.c  $(INITHEADERS) $(TARGET_LNK)  
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+
+dyninit.obj:  $(KSRCD)dyninit.c  $(INITHEADERS) $(TARGET_LNK)  
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+
+initdisk.obj: $(KSRCD)initdisk.c  $(INITHEADERS) $(TARGET_LNK)  
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+
+initclk.obj: $(KSRCD)initclk.c  $(INITHEADERS) $(TARGET_LNK)  
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+
+#the string functions for INIT_TEXT
+iasmsupt.obj: $(KSRCD)asmsupt.asm $(TARGET_LNK)
+	$(NASM) -D$(COMPILER) -D_INIT $(NASMFLAGS) -f obj -o $^@ $[@
+
+#the printf for INIT_TEXT - yet another special case, this file includes prf.c
+iprf.obj: $(KSRCD)iprf.c $(KSRCD)prf.c $(HDRD)portab.h $(TARGET_LNK)
+	$(CC) $(INITCFLAGS) $[@
+	$(INITPATCH) $^@
+

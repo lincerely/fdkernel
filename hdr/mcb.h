@@ -51,7 +51,11 @@ static BYTE *mcb_hRcsId =
 #define MCB_NORMAL      0x4d
 #define MCB_LAST        0x5a
 
+#if defined(NEC98)
+#define DOS_PSP         (0x0060 + 0x02d0)  /* see nec98/kernel/kernel.asm */
+#else
 #define DOS_PSP         0x0060  /* 0x0008 What? seg 8 =0:0080 */
+#endif
 #define FREE_PSP        0
 
 #define MCB_SIZE(x)     ((((LONG)(x))<<4)+sizeof(mcb))

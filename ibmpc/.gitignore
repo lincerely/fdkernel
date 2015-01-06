@@ -1,0 +1,37 @@
+#  Object Files
+*.OBJ
+*.obj
+*.o
+
+#  Library Files
+*.LIB
+*.lib
+*.a
+
+# List Files
+*.LST
+*.lst
+
+# Map files
+*.MAP
+*.map
+*.sym
+
+# Executable files
+*.COM
+*.EXE
+*.com
+*.exe
+utils/exeflat
+
+
+# FreeDOS build tools configuration
+config.bat
+config.mak
+
+
+kernel/KERNEL.SYS
+kernel/*.sys
+kernel/*.rsp
+bin/K*.sys
+bin/k*.sys

@@ -1,0 +1,28 @@
+#
+# makefile for DOS-C boot
+#
+
+
+!include "../mkfiles/generic.mak"
+
+#SRCD=..$(DIRSEP)..$(DIRSEP)boot$(DIRSEP)
+SRCD=.$(DIRSEP)
+
+production:     b_fat12f.bin b_fat12.bin b_fat16.bin
+
+
+b_fat12.bin:    $(SRCD)boot.asm
+	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT12 -dNEC98HDD $[@ -l $^*.lst -o $^@
+
+b_fat12f.bin:    $(SRCD)boot.asm
+	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT12 -dNEC98FDD $[@ -l $^*.lst -o $^@
+
+b_fat16.bin:    $(SRCD)boot.asm
+	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT16 -dNEC98HDD $[@ -l $^*.lst -o $^@
+
+clobber:        clean
+	-$(RM) *.bin status.me
+
+clean:
+	-$(RM) *.lst *.map *.bak *.obj
+
