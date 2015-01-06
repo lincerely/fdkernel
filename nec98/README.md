@@ -8,11 +8,8 @@ Merge heavy works of predecessors (mostly not me) with current development kerne
 
 Base patches from:
 
-* http://www.retropc.net/tori/freedos/
-** kernel 2028 (2005/7/24)  (bootloader, sys.com)  
-** kernel 2035a (2005/7/25) (kernel)
-* from http://bauxite.sakura.ne.jp/wiki/mypad.cgi?p=DOS%2FFreeDOS%2898%29%2Ftemp
-** fd98patch-20060906.zip
+* http://www.retropc.net/tori/freedos/  kernel 2028 (2005/7/24)(bootloader, sys.com)  kernel 2035a (2005/7/25) (kernel)
+* from http://bauxite.sakura.ne.jp/wiki/mypad.cgi?p=DOS%2FFreeDOS%2FFreeDOS%2898%29%2Ftemp  fd98patch-20060906.zip
 
 FreeDOS development kernel:
 
