@@ -503,10 +503,17 @@ STATIC void kernel()
     strcpy(p, "COMSPEC=");
     p += strlen(p);
 # if 1
-    *p = 'A' + LoL->BootDrive - 1;
-    p++;
-    strcpy(p, ":\\");
-    p += 2;
+    if (Config.cfgInit[0] != '\0')
+    {
+      char *cm = Config.cfgInit;
+      if (cm[0] != '\\' && cm[1] != ':')
+      {
+        *p = 'A' + LoL->BootDrive - 1;
+        p++;
+        strcpy(p, ":\\");
+        p += 2;
+      }
+    }
 # endif
     strcpy(p, Config.cfgInit);
   }
