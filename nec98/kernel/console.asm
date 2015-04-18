@@ -183,10 +183,18 @@ ConInStat:
 ; 07h input flush
 		global	ConInpFlush
 ConInpFlush:
-		mov	byte [cs:conin_buf_cnt], 0
+		mov byte [cs:conin_buf_cnt], 0
+		mov byte [cs:conin_buf], 0
 
-		mov	ah, 3	; init keyboard
-		int	18h
+	.loc_loop:
+		mov ah, 1
+		int 18h
+		or bh, bh
+		jz .loc_end
+		xor ah, ah
+		int 18h
+		jmp short .loc_loop
+	.loc_end
 		jmp	_IOExit
 
 ; 08h output
