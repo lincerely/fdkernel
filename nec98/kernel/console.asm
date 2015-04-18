@@ -105,6 +105,46 @@ cnv_conin:
 		pop	bx
 		ret
 
+; push_conin
+; push keydata to conin_buf
+; in: al (keydata)
+push_conin:
+		push bx
+		push cx
+		mov cx, 15
+		mov bx, conin_buf
+	.loc_lp:
+		cmp byte [cs:bx], 0
+		je .loc_append
+		inc bx
+		loop .loc_lp
+		jmp short .loc_exit
+	.loc_append:
+		mov byte [cs:bx], al
+		mov byte [cs:bx+1], 0
+		mov byte [cs:conin_buf_cnt], 1
+	.loc_exit:
+		pop cx
+		pop bx
+		ret
+
+; VOID FAR ASMCFUNC flush_conin(void)
+	global _flush_conin
+_flush_conin:
+		mov byte [cs:conin_buf], 0
+		mov byte [cs:conin_buf_cnt], 0
+		retf
+
+; VOID FAR ASMCFUNC push_key_to_conin(UBYTE c)
+	global _push_key_to_conin
+_push_key_to_conin:
+		push bp
+		mov bp, sp
+		mov al, [bp + 6]	; +0:bp +2:ret-off +4:ret-seg +6:arg
+		call push_conin
+		pop bp
+		retf
+
 ; 04h input
 		global	ConRead
 ConRead:

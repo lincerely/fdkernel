@@ -2301,6 +2301,10 @@ STATIC int atoi(UBYTE *p)
 	return ret;
 }
 
+#if 1
+extern VOID FAR ASMCFUNC push_key_to_conin(unsigned char);
+extern VOID FAR ASMCFUNC flush_conin(VOID);
+#endif
 STATIC VOID parse_esc(UBYTE c)
 {
 	if(int29_esc_cnt < sizeof(int29_esc_buf))
@@ -2634,6 +2638,34 @@ STATIC VOID parse_esc(UBYTE c)
 							}
 						}
 						break;
+
+#if 1
+					case 'n':
+						if(int29_esc_cnt == 3)
+						{
+							switch(int29_esc_buf[1])
+							{
+								case '6':	/* ESC[6n */
+									{
+										UBYTE x = CURSOR_X + 1;
+										UBYTE y = CURSOR_Y + 1;
+										if (x > 99) x = 99;
+										if (y > 99) y = 99;
+										push_key_to_conin(0x1b);
+										push_key_to_conin('[');
+										push_key_to_conin('0' + (x/10));
+										push_key_to_conin('0' + (x%10));
+										push_key_to_conin(';');
+										push_key_to_conin('0' + (y/10));
+										push_key_to_conin('0' + (y%10));
+										push_key_to_conin('R');
+										
+									}
+									break;
+							}
+						}
+						break;
+#endif
 
 					case 'K':
 						if(int29_esc_cnt == 3)
