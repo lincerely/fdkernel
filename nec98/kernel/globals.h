@@ -134,6 +134,11 @@ FAR * ASM DPBp;                      /* First drive Parameter Block          */
 #define CTL_BS          0x7f
 #endif
 
+/* 
+  special key code for DOS console input:
+  As far as I see, these macros are used in very specific region
+  (only by read_line(), in chario.c)
+  
 #if defined(NEC98)
 #define INS             0x3800
 #define DEL             0x3900
@@ -161,6 +166,7 @@ FAR * ASM DPBp;                      /* First drive Parameter Block          */
 #define LEFT            0x4b00
 #define RIGHT           0x4d00
 #endif
+*/
 
 /* Blockio constants                                                    */
 #define DSKWRITE        1       /* dskxfr function parameters   */

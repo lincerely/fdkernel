@@ -37,6 +37,39 @@ static BYTE *charioRcsId =
 
 #include "globals.h"
 
+#define SPECIAL_KEY(k)      (((k)<<8) | SPECIAL_KEY_PREFIX)
+#if defined(NEC98)
+# define SPECIAL_KEY_PREFIX 0x1b
+# define INS                SPECIAL_KEY(0x50)
+# define DEL                SPECIAL_KEY(0x44)
+# define F1                 SPECIAL_KEY(0x53)
+# define F2                 SPECIAL_KEY(0x54)
+# define F3                 SPECIAL_KEY(0x55)
+# define F4                 SPECIAL_KEY(0x56)
+# define F5                 SPECIAL_KEY(0x57)
+# define KEY_VOID           SPECIAL_KEY(0x45)   /* F6 (VOID) */
+# define KEY_NWL            SPECIAL_KEY(0x4a)   /* F7 (NWL) */
+# define KEY_INS            SPECIAL_KEY(0x50)   /* F8 (INS) */
+# define KEY_REP            SPECIAL_KEY(0x51)   /* F9 (REP) */
+# define KEY_CTL_Z          SPECIAL_KEY(0x5a)   /* F10 (^Z) */
+# define LEFT               0x08                /* same code with BackSpace */
+# define RIGHT              0x0c
+#elif defined(IBMPC)
+# define SPECIAL_KEY_PREFIX 0x00
+# define INS                SPECIAL_KEY(0x52)
+# define DEL                SPECIAL_KEY(0x53)
+# define F1                 SPECIAL_KEY(0x3b)
+# define F2                 SPECIAL_KEY(0x3c)
+# define F3                 SPECIAL_KEY(0x3d)
+# define F4                 SPECIAL_KEY(0x3e)
+# define F5                 SPECIAL_KEY(0x3f)
+# define KEY_CTL_Z          SPECIAL_KEY(0x40)   /* F6 */
+# define LEFT               SPECIAL_KEY(0x4b)
+# define RIGHT              SPECIAL_KEY(0x4d)
+#else
+#endif
+
+
 STATIC int CharRequest(struct dhdr FAR **pdev, unsigned command)
 {
   struct dhdr FAR *dev = *pdev;
@@ -377,8 +410,8 @@ void read_line(int sft_in, int sft_out, keyboard FAR * kp)
     unsigned new_pos = stored_size;
     
     c = read_char_check_break(sft_in, sft_out);
-    if (c == 0)
-      c = (unsigned)read_char_check_break(sft_in, sft_out) << 8;
+    if (c == SPECIAL_KEY_PREFIX /* && !StdinBusy() */)
+      c = ((unsigned)read_char_check_break(sft_in, sft_out) << 8) | SPECIAL_KEY_PREFIX;
     switch (c)
     {
       case LF:
@@ -438,11 +471,15 @@ void read_line(int sft_in, int sft_out, keyboard FAR * kp)
         break;
             
       case DEL:
+#if defined(NEC98)
+        /* NEC98: fall-through to BS */
+#else
         stored_pos++;
         break;
+#endif
 
-      case LEFT:
 #if !defined(NEC98)
+      case LEFT:      /* NEC98: LEFT == BackSpace on standard console... */
       case CTL_BS:
 #endif
       case BS:
@@ -478,6 +515,16 @@ void read_line(int sft_in, int sft_out, keyboard FAR * kp)
           stored_pos--;
         break;
 
+#if defined(KEY_NWL)
+      case KEY_NWL:     /* workaround */
+        write_char('@', sft_out);
+        goto start_new_line;
+#endif
+#if defined(KEY_VOID)
+      case KEY_VOID:
+        c = ESC;
+        /* fall through */
+#endif
       case ESC:
         write_char('\\', sft_out);
     start_new_line:
@@ -490,10 +537,11 @@ void read_line(int sft_in, int sft_out, keyboard FAR * kp)
         insert = FALSE;
         break;
 
-      case F6:
+#if defined(KEY_CTL_Z)
+      case KEY_CTL_Z:
         c = CTL_Z;
         /* fall through */
-
+#endif
       default:
         if (count < size - 1 || c == CR)
           local_buffer[count++] = echo_char(c, sft_out);
