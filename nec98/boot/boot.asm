@@ -300,9 +300,19 @@ boot_error:	call	print
 		int	18h			; wait for a key
 		jmp	word 0ffffh:0		; reboot the machine
 
-boot_success:	call	print
+boot_success:
+	%ifdef HD_AS_BOOTDRIVE
+		mov ah, 8eh			; SASI/IDE HDD `half-height' mode
+		int 1bh
+		xor si, si				; boot partition <- first partition
+		mov ds, si
+		mov bl, 80h			; boot device <- SASI(IDE) #1
+		mov byte [DISK_BOOT], bl
+	%else
+		call	print
 		db	" GO! ",0
 		mov	bl, [bsDriveNumber]
+	%endif
 		jmp	word LOADSEG:0
 
 

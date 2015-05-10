@@ -17,6 +17,9 @@ b_fat12.bin:    $(SRCD)boot.asm
 b_fat12f.bin:    $(SRCD)boot.asm
 	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT12 -dNEC98FDD $[@ -l $^*.lst -o $^@
 
+#b_fat12f.bin:    $(SRCD)boot.asm
+#	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT12 -dNEC98FDD -dHD_AS_BOOTDRIVE $[@ -l $^*.lst -o $^@
+
 b_fat16.bin:    $(SRCD)boot.asm
 	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT16 -dNEC98HDD $[@ -l $^*.lst -o $^@
 
