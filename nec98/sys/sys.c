@@ -420,9 +420,9 @@ static UWORD get_phybps(COUNT drive)
 */
 
 #ifdef __WATCOMC__
-unsigned int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno);
+unsigned int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno, unsigned sector, unsigned count);
 #pragma aux int2526readwrite =  \
-      "mov cx, 0xffff"    \
+      "push bp"           \
       "cmp si, 0x26"      \
       "je int26"          \
       "int 0x25"          \
@@ -430,10 +430,11 @@ unsigned int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno);
       "int26:"            \
       "int 0x26"          \
       "cfltest:"          \
-      "mov ax, 0"         \
-      "adc ax, ax"        \
-      parm [ax] [bx] [si] \
-      modify [cx]         \
+      "pop ax"            \
+      "sbb ax, ax"        \
+      "pop bp"            \
+      parm [ax] [bx] [si] [dx] [cx] \
+      modify [si di]      \
       value [ax];
 
 unsigned fat32readwrite(int DosDrive, void *diskReadPacket, unsigned intno);
@@ -461,15 +462,16 @@ void reset_drive(int DosDrive);
       parm [dx] \
       modify [ax bx];
 #else
-int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno)
+int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno, unsigned sector, unsigned count)
 {
   union REGS regs;
 
   regs.h.al = (BYTE) DosDrive;
-  regs.x.bx = (short)diskReadPacket;
-  regs.x.cx = 0xffff;
+  regs.x.bx = FP_OFF(diskReadPacket);
+  regs.x.cx = count;
+  regs.x.dx = sector;
 
-  int86(intno, &regs, &regs);
+  int86x(intno, &regs, &regs);
 
   return regs.x.cflag;
 }
@@ -502,6 +504,29 @@ void reset_drive(int DosDrive)
 
 #endif
 
+unsigned GetDosVersion(void)
+{
+  union REGS regs;
+  unsigned version;
+  
+  regs.x.bx = 0xffff;
+  regs.x.ax = 0x3306;
+  int86(0x21, &regs, &regs);
+  version = ((unsigned)(regs.h.bl) << 8) + regs.h.bh;
+  if (regs.h.bl == 20)
+    version = 0x0500; /* OS/2 v2+ -> almost DOS 5.0 */
+  if (regs.h.al == 0xff || regs.x.bx == 0xffff)
+  {
+    regs.h.ah = 0x30;
+    int86(0x21, &regs, &regs);
+    version = ((unsigned)(regs.h.al) << 8) + regs.h.ah;
+    if (regs.h.al == 10)
+      version = 0x030a; /* OS/2 1.x -> almost DOS 3.1 */
+  }
+  
+  return version;
+}
+
 int MyAbsReadWrite(int DosDrive, int count, ULONG sector, void *buffer,
                    unsigned intno)
 {
@@ -518,7 +543,14 @@ int MyAbsReadWrite(int DosDrive, int count, ULONG sector, void *buffer,
   if (intno != 0x25 && intno != 0x26)
     return 0xff;
 
-  if (int2526readwrite(DosDrive, &diskReadPacket, intno))
+  if (GetDosVersion() < 0x031f) /* DOS 3.1, 3.30 */
+  {
+    if (sector >= 0xffffUL)
+      return 0xff;
+    return int2526readwrite(DosDrive, buffer, intno, (unsigned)sector, count);
+  }
+
+  if (int2526readwrite(DosDrive, &diskReadPacket, intno, 0, 0xffffU))
   {
 #ifdef WITHFAT32
     return fat32readwrite(DosDrive, &diskReadPacket, intno);
