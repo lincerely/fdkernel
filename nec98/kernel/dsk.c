@@ -454,6 +454,23 @@ STATIC WORD getbpb(ddt * pddt)
      Note: This member will always be zero in a FAT32 BPB.
      Use the values from A_BF_BPB_BigSectorsPerFat...
   */
+#if defined(NEC98)
+  if (pbpbarray->bpb_mdesc == 0xf8 && pbpbarray->bpb_nheads == 0)
+    pbpbarray->bpb_nheads = 1; /* workaround for NEC98 HD boot record */
+#endif
+
+  /* check extended boot record */
+  if (DiskTransferBuffer[0x26] != 0x29)
+  {
+    /* non-extended boot record */
+    pbpbarray->bpb_hidden &= 0x0000ffffUL;  /* old bpb: stored in word */
+    pbpbarray->bpb_huge = 0;
+    /* fill with dummy value */
+    pddt->ddt_serialno = 0;
+    memcpy(pddt->ddt_volume, "NO NAME    ", sizeof pddt->ddt_volume);
+    memcpy(pddt->ddt_fstype, "UNKNOWN ", sizeof pddt->ddt_fstype);
+  }
+  else
   {
     struct FS_info *fs = (struct FS_info *)&DiskTransferBuffer[0x27];
 #ifdef WITHFAT32
@@ -739,6 +756,9 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
         if (ret != 0)
           return (ret);
 
+        if (DiskTransferBuffer[0x26] != 0x29) /* check extended boot record */
+          return failure(E_MEDIA);
+
         fs = (struct FS_info *)&DiskTransferBuffer
             [(pddt->ddt_bpb.bpb_nfsect != 0 ? 0x27 : 0x43)];
         fs->serialno = gioc->ioc_serialno;
@@ -795,6 +815,9 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
         ret = getbpb(pddt);
         if (ret != 0)
           return (ret);
+
+        if (DiskTransferBuffer[0x26] != 0x29) /* check extended boot record */
+          return failure(E_MEDIA);
 
         gioc->ioc_serialno = pddt->ddt_serialno;
         fmemcpy(gioc->ioc_volume, pddt->ddt_volume, 11);
