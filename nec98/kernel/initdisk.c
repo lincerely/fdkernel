@@ -845,9 +845,10 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   regs.a.b.h = 0x84;
   regs.a.b.l = drive;
   regs.b.x = 256;
+  regs.d.x = 0;
   init_call_intr(0x1b, &regs);
 
-  if (regs.flags & 0x01)
+  if ((regs.flags & 0x01) || regs.d.x == 0)
     goto ErrorReturn;
 
   driveParam->chs.Head = regs.d.b.h;
