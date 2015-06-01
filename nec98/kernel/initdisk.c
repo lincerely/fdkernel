@@ -754,6 +754,9 @@ void DosDefinePartition(struct DriveParamS *driveParam,
     UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1, (UBYTE FAR *) DiskTransferBuffer);
     if (rc == 0) rc = *((UWORD FAR *)&DiskTransferBuffer[BT_BPB]);
     pddt->ddt_defbpb.bpb_nbyte = (rc == 256 || rc == 512 || rc == 1024 || rc == 2048 || rc == 4096) ? rc : 1024; /* todo: set proper value for BIOS in default */ 
+    pddt->ddt_defbpb.bpb_hidden = *((UWORD FAR *)&DiskTransferBuffer[0x1c]);
+    if (DiskTransferBuffer[0x26] != 0x29)
+      pddt->ddt_defbpb.bpb_hidden &= 0xffffU;
   }
 
 #else
@@ -763,7 +766,11 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   pddt->ddt_defbpb.bpb_mdesc = 0xf8;
   pddt->ddt_defbpb.bpb_nheads = driveParam->chs.Head;
   pddt->ddt_defbpb.bpb_nsecs = driveParam->chs.Sector;
+#if defined(NEC98)
+  /* pddt->ddt_defbpb.bpb_hidden = *((UWORD FAR *)&DiskTransferBuffer[0x1c]); */
+#else
   pddt->ddt_defbpb.bpb_hidden = pEntry->RelSect;
+#endif
 
   pddt->ddt_defbpb.bpb_nsize = 0;
   pddt->ddt_defbpb.bpb_huge = pEntry->NumSect;
