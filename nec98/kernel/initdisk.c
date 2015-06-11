@@ -52,6 +52,10 @@ typedef int  PartitionsField;
 
 UBYTE InitDiskTransferBuffer[MAX_SEC_SIZE] BSS_INIT({0});
 COUNT nUnits BSS_INIT(0);
+#if defined(NEC98)
+UWORD BootPartIndex BSS_INIT(0);
+UBYTE DauaSASIs[4] BSS_INIT({0});
+#endif
 
 /*
  *    Rev 1.0   13 May 2001  tom ehlert
@@ -293,6 +297,7 @@ struct PartTableEntry           /* INTERNAL representation of partition table en
   ULONG RelSect;
   ULONG NumSect;
 #if defined(NEC98)
+  UWORD part_index;
   struct CHS ipl;
   UBYTE oem_name[17];
 #endif
@@ -798,8 +803,18 @@ void DosDefinePartition(struct DriveParamS *driveParam,
 #if defined(NEC98)
 /* NEC PC-98x1 (pc98) */
     LBA_to_CHS(&chs, StartSector, driveParam);
+    printf("\r%c: ", 'A' + nUnits);
+    if ((driveParam->driveno & 0x70) == 0)
+      printf("SASI%d", (driveParam->driveno & 0xf) + 1);
+    else if ((driveParam->driveno & 0x70) == 0x20)
+      printf("SCSI%d", (driveParam->driveno & 0xf));
+    else
+      printf("DA:%02X", driveParam->driveno);
+    printf(" [%-16s]", pEntry->oem_name);
+# if 0
     printf("\r%c: HD%d[%-16s]", 'A' + nUnits,
             (driveParam->driveno & 0x7f) + 1, pEntry->oem_name);
+# endif
 
 #else
 /* IBMPC fdisk (msdos) */
@@ -824,6 +839,13 @@ void DosDefinePartition(struct DriveParamS *driveParam,
     printf(", start=%6lu MB, size=%6lu MB\n",
            StartSector / 2048, pEntry->NumSect / 2048);
   }
+#if defined(NEC98)
+  /* store DA/UA list in internal work area */
+  if (nUnits < 16)
+    pokeb(0x60, 0x006c + nUnits, driveParam->driveno);
+  if (nUnits < 26)
+    pokeb(0x60, 0x2c87 + nUnits*2, driveParam->driveno);
+#endif
 
   nUnits++;
 }
@@ -837,7 +859,11 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
 
   ExtLBAForce = FALSE;
   memset(driveParam, 0, sizeof *driveParam);
-  drive |= 0x80;
+  if (drive < 0 || drive >= sizeof DauaSASIs / sizeof DauaSASIs[0])
+    goto ErrorReturn;
+  drive = DauaSASIs[drive];
+  if (!drive)
+    goto ErrorReturn;
   
 
   regs.a.b.h = 0x84;
@@ -1050,6 +1076,7 @@ BOOL ConvPartTableEntryToIntern_nec98(struct PartTableEntry * pEntry,
     ULONG BeginSect;
     ULONG EndSect;
 
+    pEntry->part_index = i;
     pEntry->Bootable = pDisk[0];
     pEntry->FileSystem = pDisk[1];
 
@@ -1315,9 +1342,9 @@ int Read1LBASector_nec98(struct DriveParamS *driveParam, unsigned drive,
   iregs regs;
   int num_retries;
   
+  drive = driveParam->driveno;
   for (num_retries = 0; num_retries < N_RETRY; num_retries++)
   {
-    regs.d.b.l = drive | 0x80;
     regs.a.b.h = 0x06;
     regs.a.b.l = drive & 0x7f;
     regs.d.x = (UWORD)(LBA_address >> 16);
@@ -1544,7 +1571,19 @@ int BIOS_nrdrives_nec98(void)
 {
   /* todo */
 # if 1
-  return 1;
+  UWORD equip;
+  int units;
+  int i;
+  
+  equip = peekw(0, 0x55c); /* DISK_EQUIP */
+  units = 0;
+  for(i=0; i<4; ++i)
+  {
+    if (equip & (0x0100U << i))
+      DauaSASIs[units++] = 0x80 + i;
+  }
+  
+  return units;
 # else
   return peekw(0, 0x55c /* DISK_EQUIP */ ) & 1;  /* only one HD now */
 # endif
@@ -1714,6 +1753,8 @@ void ReadAllPartitionTables(void)
 #endif
 
 #if defined(NEC98)
+  BootPartIndex = peekw(0x60, 0x52); /* fetch boot partition */
+  pokew(0x60, 0x52, 0);
 #elif defined(IBMPC)
   /* quick adjustment of diskette parameter table */
   fmemcpy(int1e_table, *(char FAR * FAR *)MK_FP(0, 0x1e*4), sizeof(int1e_table));

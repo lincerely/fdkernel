@@ -66,16 +66,21 @@ _LowKernelConfig:
 
 configstart:
 
+%ifdef NEC98
+DLASortByDriveNo            db 1        ; sort disks by drive order
+InitDiskShowDriveAssignment db 1        ;
+SkipConfigSeconds           db 2        ;
+ForceLBA                    db 0        ;
+GlobalEnableLBAsupport      db 0        ;
+BootHarddiskSeconds         db 0        ;
+%else
 DLASortByDriveNo            db 0        ; sort disks by drive order
 InitDiskShowDriveAssignment db 1        ;
 SkipConfigSeconds           db 2        ;
 ForceLBA                    db 0        ;
-%ifdef NEC98
-GlobalEnableLBAsupport      db 0        ;
-%else
 GlobalEnableLBAsupport      db 1        ;
-%endif
 BootHarddiskSeconds         db 0        ;
+%endif
 
 ; The following VERSION resource must be keep in sync with VERSION.H
 Version_OemID               db 0xFD     ; OEM_ID
@@ -134,6 +139,14 @@ _inside_revision    db  0               ; 0022h 内部リビジョン
                 resb    0031h - ($ - entry)
                 global  _promem_under16
 _promem_under16 db  0                   ; 0031h プロテクトメモリサイズ(16M以下/128K単位)
+
+                resb    0052h - ($ - entry)
+                global  _hdboot_partindex
+_hdboot_partindex dw  0                 ; 0052h scratchpad for ADDDRV.EXE (undoc2:memdos.txt)
+                                        ;
+                                        ; lpproj:
+                                        ;   temporarily used for preserve SI on booting, 
+                                        ;   that points to BOOT partition.
 
                 resb    006ch - ($ - entry)
                 global  _daua_list
@@ -206,6 +219,7 @@ segment INIT_TEXT
 kernel_start:
 
 %ifdef NEC98
+                mov [cs:_hdboot_partindex], si  ; preverve boot partition info...
                 call    init_crt
 %endif
 %ifdef IBMPC
