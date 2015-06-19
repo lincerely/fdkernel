@@ -132,7 +132,7 @@ COUNT DiskWrite(WORD, WORD, WORD, WORD, WORD, BYTE FAR *);
 #endif
 
 struct bootsectortype {
-  UBYTE bsJump[3];
+  UBYTE bsJump[3];              /* nec98: eb 45 90 (DOS 5, DOS 6.20) */
   char OemName[8];
   UWORD bsBytesPerSec;
   UBYTE bsSecPerClust;
@@ -152,12 +152,40 @@ struct bootsectortype {
   ULONG bsVolumeID;
   char bsVolumeLabel[11];
   char bsFileSysType[8];
+#if 1
+  ULONG sysPartStart;           /* nec98: first phys sector of the partition (same as bsHidden on DOS 5+) */
+  UWORD sysDataOffset;          /* nec98: offset of IO.SYS sector (first data sector) */
+  UWORD sysPhysicalBPS;         /* nec98: bytes/sector (Physical) */
+  UBYTE unknown[1];             /* nec98: zero? */
+  ULONG sysRootDirStart;        /* fd98: first root directory sector (logical sector, started from the partition) */
+  UWORD sysRootDirSecs;         /* fd98: count of logical sectors root dir uses */
+  ULONG sysFatStart;            /* fd98: first FAT sector (logical sector, started from the partition) */
+  ULONG sysDataStart;           /* fd98: first data sector (logical sector, started from the partition) */
+#else
   char unused[2];
   UWORD sysRootDirSecs;         /* of sectors root dir uses */
   ULONG sysFatStart;            /* first FAT sector */
   ULONG sysRootDirStart;        /* first root directory sector */
   ULONG sysDataStart;           /* first data sector */
   UWORD sysPhysicalBPS;         /* bytes/sector (Physical) */
+#endif
+};
+
+struct nec3bootsectortype {     /* DOS 3.x HDD PBR (formatted with NEC DOS 3.x) */
+  UBYTE bsJump[3];              /* nec98 DOS3.3 : 0xeb, 0x1f, 0x90 */
+  char OemName[8];              /* nec98 DOS3.3 : all zero? */
+  UWORD bsBytesPerSec;
+  UBYTE bsSecPerClust;
+  UWORD bsResSectors;
+  UBYTE bsFATs;
+  UWORD bsRootDirEnts;
+  UWORD bsSectors;
+  UBYTE bsMedia;
+  UWORD bsFATsecs;
+  ULONG sysPartStart;           /* nec98 DOS3.3 : first phys sector of the partition (same as bsHidden on DOS 5+) */
+  UWORD sysDataOffset;          /* nec98 DOS3.3 : offset of IO.SYS sector (first data sector) */
+  UWORD sysPhysicalBPS;         /* nec98 DOS3.3 : bytes/sector (Physical) */
+  UBYTE unknown[1];             /* nec98 DOS3.3: zero? */
 };
 
 struct bootsectortype32 {
@@ -201,11 +229,15 @@ UBYTE newboot[MAX_SEC_SIZE], oldboot[MAX_SEC_SIZE];
 #define SBSIZE          (sizeof(struct bootsectortype) - SBOFFSET)
 #define SBSIZE32        (sizeof(struct bootsectortype32) - SBOFFSET)
 
+#if 1
+/* nec98 todo: verify bootsectortype */
+#else
 /* essentially - verify alignment on byte boundaries at compile time  */
 struct VerifyBootSectorSize {
   char failure1[sizeof(struct bootsectortype) == 80 ? 1 : -1];
   char failure2[sizeof(struct bootsectortype) == 80 ? 1 : 0];
 };
+#endif
 
 int FDKrnConfigMain(int argc, char **argv);
 
@@ -371,13 +403,25 @@ VOID dump_sector(unsigned char far * sec)
 	get physical bytes per sector
 */
 
+static UBYTE drive_to_daua(COUNT drive)
+{
+  UBYTE daua;
+  if (drive < 0 || drive > 26)
+    return 0;
+  if (drive < 16)
+    daua = *(UBYTE FAR *)(0x0060006cUL + drive);
+  else
+    daua = *(UBYTE FAR *)(0x00602c86UL + drive * 2 + 1);
+  return daua;
+}
+
 static UBYTE is_fdd(COUNT drive, UBYTE daua)
 {
   UBYTE da;
   
   if (drive >= 27 && daua == 0xff) return 0;
   if (daua == 0xff) {
-	daua = *(UBYTE far *)(0x00602c86UL + drive * 2 + 1);
+    daua = drive_to_daua(drive);
   }
   da = daua >> 4;
   if (! (da == 1 || da == 3 || da == 5 || da == 7 || da == 9 || da == 0xf) )
@@ -414,6 +458,44 @@ static UWORD get_phybps(COUNT drive)
 	return regs.x.bx;
 }
 
+static int rewrite_bpb_geo(COUNT drive, struct bootsectortype *bs)
+{
+  union REGS regs;
+  UBYTE daua;
+  daua = drive_to_daua(drive);
+  if (!daua)
+    return 0xff;
+  if (is_fdd(drive, daua))
+  {
+    *(UWORD *)&(bs->bsDriveNumber) = 0;
+  }
+  else
+  {
+    *(UWORD *)&(bs->bsDriveNumber) = daua;
+    regs.h.ah = 0x84;
+    regs.h.al = daua;
+    regs.x.bx = 0;
+    int86(0x1b, &regs, &regs);
+    if (!regs.x.cflag && regs.x.bx)
+    {
+      bs->bsHeads = regs.h.dh;
+      bs->bsSecPerTrack = regs.h.dl;
+      bs->sysPhysicalBPS = regs.x.bx;
+    }
+    else
+    {
+      /* very old scsi ... not supported (yet) */
+#if 1
+      printf("Can't get information of HD geometry (drive %c)\n", 'A' + drive);
+      exit(1);
+#else
+      return 0xff;
+#endif
+    }
+  }
+  return 0;
+}
+
 /*
     TC absRead not functional on MSDOS 6.2, large disks
     MSDOS requires int25, CX=ffff for drives > 32MB
@@ -434,7 +516,7 @@ unsigned int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno, un
       "sbb ax, ax"        \
       "pop bp"            \
       parm [ax] [bx] [si] [dx] [cx] \
-      modify [si di]      \
+      modify [ax bx cx dx si di es]      \
       value [ax];
 
 unsigned fat32readwrite(int DosDrive, void *diskReadPacket, unsigned intno);
@@ -652,6 +734,41 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #endif
 
   bs = (struct bootsectortype *)&oldboot;
+  if (bs->bsBootSignature != 0x29)
+  {
+    /* non extended BPB */
+    struct nec3bootsectortype *bsnec3 = (struct nec3bootsectortype *)&oldboot;
+    if (memcmp(bsnec3->bsJump, "\xeb" "\x1f" "\x90", 3) == 0 && bsnec3->bsMedia == 0xf8)
+    {
+      /* if the PBR is NEC DOS 3.3 one, fetch the beginning LBA */
+      bs->sysPartStart = bsnec3->sysPartStart;
+      bs->bsHiddenSecs = bs->sysPartStart;
+#ifdef DEBUG
+      printf("The boot sector has non-extended BPB (maybe NEC DOS 3.x HD)\n");
+#endif
+    }
+    else
+    {
+      if (memcmp(bsnec3->OemName, "FreeDOS", 7) == 0) /* check retouch by FreeDOS(98) */
+      {
+#ifdef DEBUG
+        printf("The boot sector has non-extended BPB (maybe FreeDOS98)\n");
+#endif
+      }
+      else
+      {
+        /* todo: check FDs, and EPSON DOS 3.x HD... */
+        printf("unsupported partition!\n");
+        exit(1);
+      }
+    }
+#if 0
+    if (bs->bsHeads == 0)
+      bs->bsHeads = 1;
+    bs->bsHiddenSecs &= 0xffffU;
+#endif
+    bs->bsHugeSectors = 0;
+  }
   if ((bs->bsFileSysType[4] == '6') && (bs->bsBootSignature == 0x29))
   {
     fs = 16;
@@ -747,6 +864,16 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 
   bs = (struct bootsectortype *)&newboot;
 
+#if defined(NEC98)
+  rewrite_bpb_geo(drive, bs);
+  if (bs->bsBootSignature != 0x29 && fs != 32)
+  {
+    /* write dummy for a proof */
+    bs->bsHugeSectors = 0;
+    bs->bsVolumeID = 0;
+    memcpy(bs->bsVolumeLabel, "NO NAME    ", sizeof bs->bsVolumeLabel);
+  }
+#endif
 /*
   memcpy(bs->OemName, "FreeDOS ", 8);
 */
@@ -782,14 +909,30 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #endif
   {
 #ifdef STORE_BOOT_INFO
+# if 0
     /* TE thinks : never, see above */
     /* temporary HACK for the load segment (0x0060): it is in unused */
     /* only needed for older kernels */
     *((UWORD *) (bs->unused)) =
         *((UWORD *) (((struct bootsectortype *)&b_fat16)->unused));
     /* end of HACK */
+# endif
     /* root directory sectors */
 
+# if 1
+    bs->sysPhysicalBPS = get_phybps(drive);
+    if (bs->sysPhysicalBPS == 0) bs->sysPhysicalBPS = bs->bsBytesPerSec;
+    
+    temp = 0; /* bs->bsHiddenSecs; */
+    temp += bs->bsResSectors;
+    bs->sysFatStart = temp;
+    temp += (ULONG)bs->bsFATsecs * bs->bsFATs;
+    bs->sysRootDirStart = temp;
+    bs->sysRootDirSecs = (UWORD)((ULONG)bs->bsRootDirEnts * 32L / bs->bsBytesPerSec);
+    temp += bs->sysRootDirSecs;
+    bs->sysDataStart = temp;
+    
+# else
     bs->sysRootDirSecs = (UWORD)((ULONG)bs->bsRootDirEnts * 32L / bs->bsBytesPerSec);
 
     /* sector FAT starts on */
@@ -808,6 +951,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
     bs->sysPhysicalBPS = get_phybps(drive);
     if (bs->sysPhysicalBPS == 0) bs->sysPhysicalBPS = bs->bsBytesPerSec;
 
+# endif
     /* put 0 for A: or B: (force booting from A:), otherwise use DL */
 /*
     bs->bsDriveNumber = drive < 2 ? 0 : 0xff;
@@ -815,12 +959,14 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   }
 
 #ifdef DEBUG
+  {
+  UWORD s_scale = bs->bsBytesPerSec / bs->sysPhysicalBPS;
   printf("Root dir entries = %u\n", bs->bsRootDirEnts);
   printf("Root dir sectors = %u\n", bs->sysRootDirSecs);
 
-  printf("FAT starts at sector            = %lu\n", bs->sysFatStart);
-  printf("Root directory starts at sector = %lu\n", bs->sysRootDirStart);
-  printf("DATA starts at sector           = %lu\n", bs->sysDataStart);
+  printf("FAT starts at sector            = %lu (%lu)\n", bs->sysFatStart, bs->bsHiddenSecs + bs->sysFatStart * s_scale);
+  printf("Root directory starts at sector = %lu (%lu)\n", bs->sysRootDirStart, bs->bsHiddenSecs + bs->sysRootDirStart * s_scale);
+  printf("DATA starts at sector           = %lu (%lu)\n", bs->sysDataStart, bs->bsHiddenSecs + bs->sysDataStart * s_scale);
 
   printf("Logical bytes per sector  = %u\n", bs->bsBytesPerSec);
   printf("Physical bytes per sector = %u\n", bs->sysPhysicalBPS);
@@ -830,6 +976,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   printf("Heads                     = %u\n", bs->bsHeads);
   printf("Hidden sectors            = %lu\n", bs->bsHiddenSecs);
   #endif
+  }
 #endif
 #endif
 
@@ -845,11 +992,15 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
     printf("writing new bootsector to drive %c:\n", drive + 'A');
 #endif
 
+#if defined(TEST_SYS)
+    printf("test mode ... not write the boot sector.\n");
+#else
     if (MyAbsReadWrite(drive, 1, 0, newboot, 0x26) != 0)
     {
       printf("Can't write new boot sector to drive %c:\n", drive + 'A');
       exit(1);
     }
+#endif
   }
 
   if (bsFile != NULL)

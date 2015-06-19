@@ -66,6 +66,20 @@ bsVolumeLabel	times 11 db 0		; (midVolLabel)
 bsFileSysType	times 8  db 0		; (midFileSysType)
 ; end of extended BPB
 
+%if 1
+sysPartStart	dd	0		; (nec98 DOS5+ HD) first sector of the partition (same as bsHiddenSecs)
+sysDataOffset	dw	0		; (nec98 DOS5+ HD) offset of system data (IO.SYS) by physical sector (from sysPartStart)
+sysPhysicalBPS	dw	0		; (nec98 DOS5+ HD) bytes/sector (Physical)
+		db	0		; (nec98 DOS5+ HD) unknown
+; specific of FreeDOS(in boot.asm/sys.c)
+sysRootDirStart	dd	0		; first root directory sector (logical sector, started from the partition)
+sysRootDirSecs	dw 0		; count of logical sectors of root directory
+sysFatStart	dd	0		; first FAT sector (logical sector, started from the partition)
+sysDataStart	dd	0		; first data sector (logical sector, started from the partition)
+tempbuf_dw:
+tempbuf_off	dw	0
+tempbuf_seg	dw	LOADSEG
+%else
 ; specific of FreeDOS(in boot.asm/sys.c)
 tempbuf		dw	LOADSEG
 sysRootDirSecs	dw	0		; # of sectors root dir uses
@@ -73,6 +87,7 @@ sysFatStart	dd	0		; first FAT sector
 sysRootDirStart	dd	0		; first root directory sector
 sysDataStart	dd	0		; first data sector
 sysPhysicalBPS	dw	0		; bytes/sector (Physical)
+%endif
 
 ;-----------------------------------------------------------------------
 
@@ -106,6 +121,7 @@ real_start:
 		push	cs
 		pop	ds
 		mov	[bsDriveNumber], al
+    push si							; preserve boot partition
 
 %if 1
 		call	print
@@ -139,17 +155,18 @@ real_start:
                 mov     ax, word [sysRootDirStart]
                 mov     dx, word [sysRootDirStart + 2]
                 mov     di, word [sysRootDirSecs]
-                xor     bx, bx
-;                mov     word [tempbuf], LOADSEG
-                mov     es, [tempbuf]
+                les bx, [tempbuf_dw]									; ES:BX = LOADSEG:0000
+                push es
+                push bx
                 call    readDisk
+                pop di																; di = bx (0)
+                pop ax																; ax = es (LOADSEG)
                 jc      jmp_boot_error
-
-                xor     di, di
 
 		; Search for KERNEL.SYS file name, and find start cluster.
 
 	.next_entry:
+                mov es, ax
 		mov     cx, 11
                 mov     si, filename
                 push    di
@@ -157,11 +174,11 @@ real_start:
                 pop     di
                 je      .ffDone
 
-                add     di, byte 20h		; go to next directory entry
+                add ax, 2		; go to next directory entry
                 cmp     byte [es:di], 0		; if the first byte of the name is 0,
                 jnz     .next_entry		; there is no more files in the directory
 
-		jmp	short boot_error	; fail if not found
+		jmp	short boot_error; fail if not found
 	.ffDone:
                 mov     ax, [es:di + 1ah]	; get cluster number from directory entry
                 push    ax			; store first cluster number
@@ -196,8 +213,7 @@ real_start:
 		les	ax, [sysFatStart]
 		push	es
 		pop	dx
-		mov	es, [tempbuf]
-		xor	bx, bx
+    les bx, [tempbuf_dw]
 		mov	di, [bsFATsecs]
 	%endif
                 call    readDisk
@@ -244,7 +260,7 @@ fat_12:         add     si, si          ; multiply cluster number by 3...
                 ; This is a FAT-16 disk. The maximal size of a 16-bit FAT
                 ; is 128 kb, so it may not fit within a single 64 kb segment.
 
-fat_16:         mov     dx, [cs:tempbuf]
+fat_16:         mov     dx, [cs:tempbuf_seg]
                 add     si, si          ; multiply cluster number by two
                 jnc     .first_half	; if overflow...
                 add     dh, 10h		; ...add 64 kb to segment value
@@ -272,8 +288,7 @@ finished:       ; Mark end of FAT chain with 0, so we have a single
 
 ;       loadFile: Loads the file into memory, one cluster at a time.
 
-                mov     es, [tempbuf]   ; set ES:BX to load address
-                xor     bx, bx
+                les bx, [tempbuf_dw]    ; set ES:BX to load address
 
                 mov     si, FATBUF      ; set DS:SI to the FAT chain
 
@@ -304,6 +319,7 @@ boot_success:
 	%ifdef HD_AS_BOOTDRIVE
 		mov ah, 8eh			; SASI/IDE HDD `half-height' mode
 		int 1bh
+		; pop si						; restore boot partition
 		xor si, si				; boot partition <- first partition
 		mov ds, si
 		mov bl, 80h			; boot device <- SASI(IDE) #1
@@ -312,6 +328,7 @@ boot_success:
 		call	print
 		db	" GO! ",0
 		mov	bl, [bsDriveNumber]
+		pop si						; restore boot partition
 	%endif
 		jmp	word LOADSEG:0
 
