@@ -140,14 +140,6 @@ _inside_revision    db  0               ; 0022h 内部リビジョン
                 global  _promem_under16
 _promem_under16 db  0                   ; 0031h プロテクトメモリサイズ(16M以下/128K単位)
 
-                resb    0052h - ($ - entry)
-                global  _hdboot_partindex
-_hdboot_partindex dw  0                 ; 0052h scratchpad for ADDDRV.EXE (undoc2:memdos.txt)
-                                        ;
-                                        ; lpproj:
-                                        ;   temporarily used for preserve SI on booting, 
-                                        ;   that points to BOOT partition.
-
                 resb    006ch - ($ - entry)
                 global  _daua_list
 _daua_list      db  80h                 ; A: (SASI/IDE HD)
@@ -219,7 +211,6 @@ segment INIT_TEXT
 kernel_start:
 
 %ifdef NEC98
-                mov [cs:_hdboot_partindex], si  ; preverve boot partition info...
                 call    init_crt
 %endif
 %ifdef IBMPC

@@ -33,6 +33,7 @@ FATBUF		equ	2000h	; offset of temporary buffer for FAT chain
 _SS		equ	1400h
 _SP		equ	((1f00h - _SS) << 4) - 1
 DISK_BOOT	equ	0584h	; seg=0000h
+BOOTPART_SCRATCHPAD	equ	03feh;
 
 ;-----------------------------------------------------------------------
 
@@ -118,10 +119,10 @@ real_start:
 		xor	ax, ax
 		mov	ds, ax
 		mov	al, [DISK_BOOT]	; DA/UA
+		mov [BOOTPART_SCRATCHPAD], si		; preserve boot partition (HDD)
 		push	cs
 		pop	ds
 		mov	[bsDriveNumber], al
-    push si							; preserve boot partition
 
 %if 1
 		call	print
@@ -319,16 +320,15 @@ boot_success:
 	%ifdef HD_AS_BOOTDRIVE
 		mov ah, 8eh			; SASI/IDE HDD `half-height' mode
 		int 1bh
-		; pop si						; restore boot partition
-		xor si, si				; boot partition <- first partition
-		mov ds, si
+		xor ax, ax
+		mov ds, ax
+		mov [BOOTPART_SCRATCHPAD], ax
 		mov bl, 80h			; boot device <- SASI(IDE) #1
 		mov byte [DISK_BOOT], bl
 	%else
 		call	print
 		db	" GO! ",0
-		mov	bl, [bsDriveNumber]
-		pop si						; restore boot partition
+		;mov	bl, [bsDriveNumber]
 	%endif
 		jmp	word LOADSEG:0
 
