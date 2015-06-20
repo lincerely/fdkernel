@@ -1837,11 +1837,9 @@ void ReadAllPartitionTables(void)
   else
   {
 #if defined(NEC98)
-    /* todo... */
-    UBYTE bootdrv = peekb(0,0x584); /* DISK_BOOT */
+    /* nec98: no drive letter re-order (for HDDs) */
 #elif defined(IBMPC)
     UBYTE bootdrv = peekb(0,0x5e0);
-#endif
 
     /* printf("Drive Letter Assignment - sorted by drive\n"); */
 
@@ -1857,6 +1855,7 @@ void ReadAllPartitionTables(void)
         break;
       }
     }
+#endif
 
     for (HardDrive = 0; HardDrive < nHardDisk; HardDrive++)
     {
