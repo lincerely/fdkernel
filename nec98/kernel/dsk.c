@@ -454,17 +454,31 @@ STATIC WORD getbpb(ddt * pddt)
      Note: This member will always be zero in a FAT32 BPB.
      Use the values from A_BF_BPB_BigSectorsPerFat...
   */
-#if defined(NEC98)
-  if (pbpbarray->bpb_mdesc == 0xf8 && pbpbarray->bpb_nheads == 0)
-    pbpbarray->bpb_nheads = 1; /* workaround for NEC98 HD boot record */
-#endif
 
   /* check extended boot record */
   if (DiskTransferBuffer[0x26] != 0x29)
   {
     /* non-extended boot record */
-    pbpbarray->bpb_hidden &= 0x0000ffffUL;  /* old bpb: stored in word */
     pbpbarray->bpb_huge = 0;
+#if defined(NEC98)
+    pbpbarray->bpb_hidden = 0;
+    if (pbpbarray->bpb_mdesc == 0xf8)
+    {
+      /* todo */
+      if (DiskTransferBuffer[0] == 0xe9 && DiskTransferBuffer[1] == 0x1f && DiskTransferBuffer[2] == 0x90)
+      {
+        /* DOS 3.x HD (SASI/IDE) PBR, maybe */
+        pbpbarray->bpb_nsecs = 0;
+        pbpbarray->bpb_nheads = 0;
+        pbpbarray->bpb_hidden = *(UWORD *)&DiskTransferBuffer[0x18];
+      }
+      if (pbpbarray->bpb_nheads == 0)
+        pbpbarray->bpb_nheads = 1;  /* workaround for NEC98 HD boot record */
+    }
+#else
+    pbpbarray->bpb_hidden &= 0x0000ffffUL;  /* old bpb: stored in word */
+#endif
+    
     /* fill with dummy value */
     pddt->ddt_serialno = 0;
     memcpy(pddt->ddt_volume, "NO NAME    ", sizeof pddt->ddt_volume);
