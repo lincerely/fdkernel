@@ -39,6 +39,10 @@ static BYTE *dskRcsId =
 #define DebugPrintf(x)
 #endif
 
+#if defined(DSK_DEBUG) && defined(DEBUG_NEED_PRINTF) && !defined(DEBUG)
+extern int VA_CDECL printf(CONST char *fmt, ...);
+#endif
+
 /* #define STATIC  */
 
 BOOL ASMPASCAL fl_reset(WORD);
