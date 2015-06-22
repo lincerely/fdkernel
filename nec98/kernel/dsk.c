@@ -474,7 +474,7 @@ STATIC WORD getbpb(ddt * pddt)
         /* DOS 3.x HD (SASI/IDE) PBR, maybe */
         pbpbarray->bpb_nsecs = 0;
         pbpbarray->bpb_nheads = 0;
-        pbpbarray->bpb_hidden = *(UWORD *)&DiskTransferBuffer[0x18];
+        pbpbarray->bpb_hidden = *(ULONG *)&DiskTransferBuffer[0x18];
       }
       if (pbpbarray->bpb_nheads == 0)
         pbpbarray->bpb_nheads = 1;  /* workaround for NEC98 HD boot record */
