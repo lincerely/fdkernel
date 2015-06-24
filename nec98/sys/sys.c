@@ -793,14 +793,22 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   if (total_clusters <= 0xff6)
   {
     if (fs != 12)
+#if defined(NEC98)
+      printf("warning : new detection overrides old detection\n");
+#else
       printf("warning : new detection overrides old detection\a\n");
+#endif
     fs = 12;
   }
   else
   {
 
     if (fs != 16)
+#if defined(NEC98)
+      printf("warning : new detection overrides old detection\n");
+#else
       printf("warning : new detection overrides old detection\a\n");
+#endif
     fs = 16;
 
     /* fs = 16/32.
