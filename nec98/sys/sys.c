@@ -37,7 +37,7 @@
 /* #define DDEBUG */
 
 #define SYS_VERSION "v2.5"
-#define SYS98_VERSION "20021221"
+#define SYS98_VERSION "20150624"
 
 #include <stdlib.h>
 #include <dos.h>
