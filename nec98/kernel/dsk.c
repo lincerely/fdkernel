@@ -575,8 +575,8 @@ STATIC WORD IoctlQueblk(rqptr rp, ddt * pddt)
 }
 
 #if defined(NEC98)
-/* todo: need "sector-scaling" for geceric ioctl...? */
-#endif
+/* todo: nec98: need "sector-scaling" for geceric ioctl...? */
+#else
 /* read/write block with CHS based off start of drive's partition */
 STATIC COUNT Genblockio(ddt * pddt, UWORD mode, WORD head, WORD track,
                  WORD sector, WORD count, VOID FAR * buffer)
@@ -602,6 +602,7 @@ STATIC COUNT GenblockioAbs(ddt * pddt, UWORD mode, WORD head, WORD track,
                       (ULONG) pddt->ddt_bpb.bpb_nsecs +
                       sector, count, &transferred);
 }
+#endif
 
 STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
 {
@@ -619,6 +620,7 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
 
   switch (rp->r_fun)
   {
+#if defined(IBMPC)  /* todo: nec98 */
     case 0x40:                 /* set device parameters */
       {
         struct gblkio FAR *gblp = rp->r_io;
@@ -641,6 +643,8 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
         /*pbpb->bpb_nsector = gblp->gbio_nsecs; */
         break;
       }
+#endif
+#if defined(IBMPC)  /* todo: nec98 */
     case 0x41:                 /* write track - CHS is absolute not relative to partition start */
       {
         struct gblkrw FAR *rw = rp->r_rw;
@@ -650,6 +654,8 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
           return dskerr(ret);
       }
       break;
+#endif
+#if defined(IBMPC)  /* todo: nec98 */
     case 0x42:                 /* format/verify track */
       {
         struct gblkfv FAR *fv = rp->r_fv;
@@ -765,6 +771,7 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
         fv->gbfv_spcfunbit = 0; /* success */
       }
       break;
+#endif
     case 0x46:                 /* set volume serial number */
       {
         struct Gioc_media FAR *gioc = rp->r_gioc;
@@ -794,6 +801,7 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
           (ai->AI_Flag ? 0 : DF_NOACCESS);
       }
       break;
+#if defined(IBMPC)  /* todo: nec98 */
     case 0x60:                 /* get device parameters */
       {
         struct gblkio FAR *gblp = rp->r_io;
@@ -817,6 +825,8 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
         /*gblp->gbio_nsecs = pbpb->bpb_nsector; */
         break;
       }
+#endif
+#if defined(IBMPC)  /* todo: nec98 */
     case 0x61:                 /* read track - CHS is absolute on disk not relative to start of partition */
       {
         struct gblkrw FAR *rw = rp->r_rw;
@@ -826,6 +836,7 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
           return dskerr(ret);
       }
       break;
+#endif
     case 0x66:                 /* get volume serial number */
       {
         struct Gioc_media FAR *gioc = rp->r_gioc;
