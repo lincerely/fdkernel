@@ -48,17 +48,10 @@ extern int VA_CDECL printf(CONST char *fmt, ...);
 BOOL ASMPASCAL fl_reset(WORD);
 COUNT ASMPASCAL fl_diskchanged(WORD);
 
-#if defined(FL_COUNT_BY_BYTE)
-COUNT ASMPASCAL fl_format_b(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
-COUNT ASMPASCAL fl_read_b(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
-COUNT ASMPASCAL fl_write_b(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
-COUNT ASMPASCAL fl_verify_b(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
-#else
 COUNT ASMPASCAL fl_format(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 COUNT ASMPASCAL fl_write(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 COUNT ASMPASCAL fl_verify(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
-#endif
 COUNT ASMPASCAL fl_setdisktype(WORD, WORD);
 COUNT ASMPASCAL fl_setmediatype(WORD, WORD, WORD);
 VOID ASMPASCAL fl_readkey(VOID);
@@ -1064,9 +1057,14 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
   int num_retries;
 
   UWORD bytes_sector = pddt->ddt_bpb.bpb_nbyte;   /* bytes per sector, usually 512 */
-#if defined(NEC98) && 1
+#if defined(NEC98)
   /* ...but not usual for many Japanese systems */
+# if defined(FL_COUNT_BY_BYTE)
+  /* bytes_sector */
+  UWORD phys_bytes_sector = 512; /* todo: set actial value */
+# else
   UWORD gra_sector = bytes_sector / 512;
+# endif
 #endif
   *transferred = 0;
   
@@ -1184,8 +1182,12 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
                                                           chs.Head,
                                                           chs.Cylinder,
                                                           chs.Sector,
-#if defined(NEC98) && 1
+#if defined(NEC98)
+# if defined(FL_COUNT_BY_BYTE)
+                                                          bytes_sector * count,
+# else
                                                           count * gra_sector,
+# endif
 #else
                                                           count,
 #endif
@@ -1194,8 +1196,12 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
         if (error_code == 0 && mode == LBA_WRITE_VERIFY)
         {
           error_code = fl_verify(driveno, chs.Head, chs.Cylinder,
-#if defined(NEC98) && 1
+#if defined(NEC98)
+# if defined(FL_COUNT_BY_BYTE)
+                                 chs.Sector, bytes_sector * count, transfer_address);
+# else
                                  chs.Sector, count * gra_sector, transfer_address);
+# endif
 #else
                                  chs.Sector, count, transfer_address);
 #endif
@@ -1221,8 +1227,12 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
     }
 
     *transferred += count;
-#if defined(NEC98) && 1
+#if defined(NEC98)
+# if defined(FL_COUNT_BY_BYTE)
+    LBA_address += count * (bytes_sector / phys_bytes_sector);
+# else
     LBA_address += count * gra_sector;
+# endif
 #else
     LBA_address += count;
 #endif

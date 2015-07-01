@@ -31,13 +31,6 @@
 %include "../kernel/segs.inc"
 segment HMA_TEXT
 
-%ifdef FL_COUNT_BY_BYTE
-  ; do not scale sector count
-  %define FL_FORMAT   FL_FORMAT_B
-  %define FL_READ     FL_READ_B
-  %define FL_WRITE    FL_WRITE_B
-  %define FL_VERIFY   FL_VERIFY_B
-%endif
 
 
 
