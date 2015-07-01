@@ -760,11 +760,11 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   {
   /* get actual sector size (for block device, not always same for BIOS) from the disk */
 # if defined(FL_COUNT_BY_BYTE)
-    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1024 /* 512 MAX_SEC_SIZE */, (UBYTE FAR *) DiskTransferBuffer);
+    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1024 /* 512 MAX_SEC_SIZE */, (UBYTE FAR *) InitDiskTransferBuffer);
 # else
-    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1, (UBYTE FAR *) DiskTransferBuffer);
+    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1, (UBYTE FAR *) InitDiskTransferBuffer);
 # endif
-    if (rc == 0) rc = *((UWORD FAR *)&DiskTransferBuffer[BT_BPB]);
+    if (rc == 0) rc = *((UWORD FAR *)&InitDiskTransferBuffer[BT_BPB]);
     pddt->ddt_defbpb.bpb_nbyte = (rc == 256 || rc == 512 || rc == 1024 || rc == 2048 || rc == 4096) ? rc : 1024; /* todo: set proper value for BIOS in default */ 
   }
 
@@ -776,8 +776,8 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   pddt->ddt_defbpb.bpb_nheads = driveParam->chs.Head;
   pddt->ddt_defbpb.bpb_nsecs = driveParam->chs.Sector;
 # if 0 && defined(NEC98)
-  if (DiskTransferBuffer[0x26] == 0x29)
-    pddt->ddt_defbpb.bpb_hidden = *((ULONG FAR *)&DiskTransferBuffer[0x1c]);
+  if (InitDiskTransferBuffer[0x26] == 0x29)
+    pddt->ddt_defbpb.bpb_hidden = *((ULONG FAR *)&InitDiskTransferBuffer[0x1c]);
   else
 # endif
   pddt->ddt_defbpb.bpb_hidden = pEntry->RelSect;
