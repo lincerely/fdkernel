@@ -38,6 +38,7 @@ static BYTE *dskRcsId =
 #else
 #define DebugPrintf(x)
 #endif
+/* #define DSK_DEBUG 1 */
 
 #if defined(DSK_DEBUG) && defined(DEBUG_NEED_PRINTF) && !defined(DEBUG)
 extern int VA_CDECL printf(CONST char *fmt, ...);
@@ -76,6 +77,10 @@ UWORD ASMPASCAL floppy_change(UWORD);
 #pragma aux (pascal) fl_lba_ReadWrite modify exact [ax dx]
 #pragma aux (pascal) floppy_change modify exact [ax cx dx]
 # endif
+#endif
+
+#if defined(NEC98)
+UWORD SasiSectorBytes[4];
 #endif
 
 STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
@@ -504,6 +509,11 @@ STATIC WORD getbpb(ddt * pddt)
   }
 
 #ifdef DSK_DEBUG
+  printf("DDT_DRIVENO   = %02x\n", pddt->ddt_driveno);
+  if ((pddt->ddt_driveno & 0xf0) == 0x80)
+    printf("sectorbytes   = %04x (%u)\n", SasiSectorBytes[pddt->ddt_driveno & 3], SasiSectorBytes[pddt->ddt_driveno & 3]);
+#endif
+#ifdef DSK_DEBUG
   printf("BPB_NBYTE     = %04x\n", pbpbarray->bpb_nbyte);
   printf("BPB_NSECTOR   = %02x\n", pbpbarray->bpb_nsector);
   printf("BPB_NRESERVED = %04x\n", pbpbarray->bpb_nreserved);
@@ -867,6 +877,9 @@ STATIC WORD Genblkdev(rqptr rp, ddt * pddt)
 
 STATIC WORD blockio(rqptr rp, ddt * pddt)
 {
+#if defined(NEC98)
+  UWORD phys_bytes_sector = 512; /* default */
+#endif
   ULONG start, size;
   WORD ret;
   UWORD done;
@@ -901,8 +914,12 @@ STATIC WORD blockio(rqptr rp, ddt * pddt)
   {
     return 0x0408;
   }
-#if defined(NEC98) && 1
-  start *= pbpb->bpb_nbyte / 512;
+#if defined(NEC98)
+# if defined(FL_COUNT_BY_BYTE)
+  if ((pddt->ddt_driveno & 0xf0) == 0x80)
+    phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
+# endif
+  start *= pbpb->bpb_nbyte / phys_bytes_sector;
 #endif
   start += pddt->ddt_offset;
 
@@ -1061,7 +1078,10 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
   /* ...but not usual for many Japanese systems */
 # if defined(FL_COUNT_BY_BYTE)
   /* bytes_sector */
-  UWORD phys_bytes_sector = 512; /* todo: set actial value */
+  UWORD phys_bytes_sector = 512; /* default */
+  
+  if ((pddt->ddt_driveno & 0xf0) == 0x80)
+    phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
 # else
   UWORD gra_sector = bytes_sector / 512;
 # endif

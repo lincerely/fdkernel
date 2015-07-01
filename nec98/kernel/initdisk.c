@@ -31,6 +31,7 @@
 
 #if defined(NEC98)
 extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
+extern UWORD FAR SasiSectorBytes[4];  /* very important FAR */
 #endif
 
 #if defined(NEC98)
@@ -812,11 +813,11 @@ void DosDefinePartition(struct DriveParamS *driveParam,
     LBA_to_CHS(&chs, StartSector, driveParam);
     printf("\r%c: ", 'A' + nUnits);
     if ((driveParam->driveno & 0x70) == 0)
-      printf("SASI%d", (driveParam->driveno & 0xf) + 1);
+      printf("SASI%u:%3u", (driveParam->driveno & 0xf) + 1, SasiSectorBytes[driveParam->driveno & 0x3]);
     else if ((driveParam->driveno & 0x70) == 0x20)
-      printf("SCSI%d", (driveParam->driveno & 0xf));
+      printf("SCSI%u:%3u", (driveParam->driveno & 0xf), 256 /* dummy */);
     else
-      printf("DA:%02X", driveParam->driveno);
+      printf("DA:%02X    ", driveParam->driveno);
     printf(" [%-16s]", pEntry->oem_name);
 # if 0
     printf("\r%c: HD%d[%-16s]", 'A' + nUnits,
@@ -896,6 +897,7 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   driveParam->chs.Sector = regs.d.b.l;
   driveParam->chs.Cylinder = regs.c.x + 1;
   driveParam->sector_size = regs.b.x;
+  SasiSectorBytes[drive & 3] = driveParam->sector_size;
 
 #if 0
 /* not needed for PC-98? */
