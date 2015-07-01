@@ -734,6 +734,11 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #endif
 
   bs = (struct bootsectortype *)&oldboot;
+  if (bs->bsBytesPerSec * bs->bsResSectors < 512)
+  {
+    printf("The boot sector is too small (less than 512bytes)\n");
+    exit(1);
+  }
   if (bs->bsBootSignature != 0x29)
   {
     /* non extended BPB */
