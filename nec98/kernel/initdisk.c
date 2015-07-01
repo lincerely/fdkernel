@@ -30,6 +30,14 @@
 #include "dyndata.h"
 
 #if defined(NEC98)
+# if defined(FL_COUNT_BY_BYTE)
+extern COUNT ASMPASCAL fl_read_b(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
+# else
+extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
+# endif
+#endif
+
+#if defined(NEC98)
 #define PARTITION_TABLES  16
 #elif defined(IBMPC)
 #define PARTITION_TABLES  4
@@ -755,8 +763,6 @@ void DosDefinePartition(struct DriveParamS *driveParam,
 #if defined(NEC98)
   {
   /* get actual sector size (for block device, not always same for BIOS) from the disk */
-  extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
-  
     UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1, (UBYTE FAR *) DiskTransferBuffer);
     if (rc == 0) rc = *((UWORD FAR *)&DiskTransferBuffer[BT_BPB]);
     pddt->ddt_defbpb.bpb_nbyte = (rc == 256 || rc == 512 || rc == 1024 || rc == 2048 || rc == 4096) ? rc : 1024; /* todo: set proper value for BIOS in default */ 

@@ -31,6 +31,16 @@
 %include "../kernel/segs.inc"
 segment HMA_TEXT
 
+%ifdef FL_COUNT_BY_BYTE
+  ; do not scale sector count
+  %define FL_FORMAT   FL_FORMAT_B
+  %define FL_READ     FL_READ_B
+  %define FL_WRITE    FL_WRITE_B
+  %define FL_VERIFY   FL_VERIFY_B
+%endif
+
+
+
 ;
 ; BOOL ASMPASCAL fl_reset(WORD drive);
 ;
@@ -147,8 +157,10 @@ fl_common:
 		mov	al,[bp+10h]	; DA/UA
 		or	al,80h
 		mov	bx,[bp+08h]	; count of sectors to read/write/...
+  %ifndef FL_COUNT_BY_BYTE
 		mov	cl,9
 		shl	bx,cl		; * 512
+  %endif
 		mov	cx,[bp+0ch]	; cylinder number
 		mov	dh,[bp+0eh]	; head number
 		mov	dl,[bp+0ah]	; sector number
