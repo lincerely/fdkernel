@@ -731,6 +731,7 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   struct CHS chs;
 
 #if defined(NEC98)
+  UWORD phys_bytes_sector;
   /* todo */
   UNREFERENCED_PARAMETER(extendedPartNo);
   UNREFERENCED_PARAMETER(PrimaryNum);
@@ -758,6 +759,13 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   pddt->ddt_offset = StartSector;
 
 #if defined(NEC98)
+# if defined(FL_COUNT_BY_BYTE)
+  phys_bytes_sector = 0;
+  if ((driveParam->driveno & 0x7c) == 0) /* SASI(IDE) #1...#4 */
+    phys_bytes_sector = SasiSectorBytes[driveParam->driveno & 0x3];
+# else
+  phys_bytes_sector = 512;
+# endif
   {
   /* get actual sector size (for block device, not always same for BIOS) from the disk */
 # if defined(FL_COUNT_BY_BYTE)
@@ -813,9 +821,9 @@ void DosDefinePartition(struct DriveParamS *driveParam,
     LBA_to_CHS(&chs, StartSector, driveParam);
     printf("\r%c: ", 'A' + nUnits);
     if ((driveParam->driveno & 0x70) == 0)
-      printf("SASI%u:%3u", (driveParam->driveno & 0xf) + 1, SasiSectorBytes[driveParam->driveno & 0x3]);
+      printf("SASI%u:%3u", (driveParam->driveno & 0xf) + 1, phys_bytes_sector);
     else if ((driveParam->driveno & 0x70) == 0x20)
-      printf("SCSI%u:%3u", (driveParam->driveno & 0xf), 256 /* dummy */);
+      printf("SCSI%u:%3u", (driveParam->driveno & 0xf), phys_bytes_sector);
     else
       printf("DA:%02X    ", driveParam->driveno);
     printf(" [%-16s]", pEntry->oem_name);
@@ -844,8 +852,25 @@ void DosDefinePartition(struct DriveParamS *driveParam,
 
     printCHS(", CHS= ", &chs);
 
+#if defined(NEC98)
+    if (phys_bytes_sector >= 1024)
+    {
+      ULONG scale = phys_bytes_sector / 1024;
+      printf(", start=%6lu MB, size=%6lu MB",
+             (StartSector / 1024U) * scale, (pEntry->NumSect / 1024U) * scale);
+    }
+    else if (phys_bytes_sector > 0)
+    {
+      ULONG scale = 1024UL * 1024U / phys_bytes_sector;
+      printf(", start=%6lu MB, size=%6lu MB",
+             StartSector / scale, pEntry->NumSect / scale);
+    }
+    printf("\n");
+#else
+  /* IBMPC */
     printf(", start=%6lu MB, size=%6lu MB\n",
            StartSector / 2048, pEntry->NumSect / 2048);
+#endif
   }
 #if defined(NEC98)
   /* store DA/UA list in internal work area */
