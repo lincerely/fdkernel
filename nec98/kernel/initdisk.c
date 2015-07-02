@@ -880,11 +880,11 @@ void DosDefinePartition(struct DriveParamS *driveParam,
     pokeb(0x60, 0x2c87 + nUnits*2, driveParam->driveno);
 #endif
 #if defined(NEC98)
-  if (driveParam->driveno == BootDaua && pEntry->part_index == (BootPartIndex & 0x1ff)/32)
+  if (driveParam->driveno == BootDaua && pEntry->part_index == BootPartIndex)
   {
-    /*
+# if 0
     printf("\nBootUnit = %02x, part_index=%d, BootPartIndex=0x%x, logdrive=%d, nUnits=%d\n", pddt->ddt_driveno, pEntry->part_index, BootPartIndex, pddt->ddt_logdriveno, nUnits);
-    */
+# endif
     LoL->BootDrive = pddt->ddt_logdriveno + 1;
   }
 #endif
@@ -1799,6 +1799,10 @@ void ReadAllPartitionTables(void)
 #if defined(NEC98)
   BootDaua = peekb(0, 0x584); /* DISK_BOOT */
   BootPartIndex = peekw(0x0, 0x3fe); /* fetch boot partition from BOOTPART_SCRATCHPAD (see boot.asm) */
+  if ((BootPartIndex & 0xff00) == 0x100)  /* boot from HD with 256bytes/sector */
+    BootPartIndex = (BootPartIndex & 0xff) / 32;
+  else                                /* or (probably) 512bytes/sector */
+    BootPartIndex = (BootPartIndex & 0x1ff) / 32;
 #elif defined(IBMPC)
   /* quick adjustment of diskette parameter table */
   fmemcpy(int1e_table, *(char FAR * FAR *)MK_FP(0, 0x1e*4), sizeof(int1e_table));
