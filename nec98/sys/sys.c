@@ -39,6 +39,8 @@
 #define SYS_VERSION "v2.5"
 #define SYS98_VERSION "20150624"
 
+#define REWRITE_ALL_RESERVED_SECTORS 1
+
 #include <stdlib.h>
 #include <dos.h>
 #include <ctype.h>
@@ -701,6 +703,35 @@ unsigned getextdrivespace(void *drivename, void *buf, unsigned buf_size)
 
 #endif
 
+#if defined(REWRITE_ALL_RESERVED_SECTORS)
+int ReadBootSectors(int DosDrive, void *buffer, size_t buffer_limit)
+{
+  int rc;
+  
+  rc = MyAbsReadWrite(DosDrive, 1, 0, buffer, 0x25);
+  if (rc == 0)
+  {
+    struct bootsectortype *bs = (struct bootsectortype *)buffer;
+    ULONG boot_bytes = bs->bsBytesPerSec * bs->bsResSectors;
+    if (boot_bytes == 0 || boot_bytes > buffer_limit)
+    {
+      printf("Unsupported boot record (bytes per sector = %u, reserved sectors = %d).\n", 
+             bs->bsBytesPerSec, bs->bsResSectors);
+      exit(1);
+    }
+    rc = MyAbsReadWrite(DosDrive, bs->bsResSectors, 0, buffer, 0x25);
+  }
+  
+  return rc;
+}
+
+int WriteBootSectors(int DosDrive, CONST void *buffer)
+{
+  CONST struct bootsectortype *bs = (CONST struct bootsectortype *)buffer;
+  return MyAbsReadWrite(DosDrive, bs->bsResSectors, 0, (void *)buffer, 0x26);
+}
+#endif
+
 VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 {
   ULONG temp;
@@ -722,7 +753,11 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #endif
 
   reset_drive(drive);
+#if defined(REWRITE_ALL_RESERVED_SECTORS)
+  if (ReadBootSectors(drive, oldboot, sizeof(oldboot)) != 0)
+#else
   if (MyAbsReadWrite(drive, 1, 0, oldboot, 0x25) != 0)
+#endif
   {
     printf("can't read old boot sector for drive %c:\n", drive + 'A');
     exit(1);
@@ -983,6 +1018,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 
   printf("Logical bytes per sector  = %u\n", bs->bsBytesPerSec);
   printf("Physical bytes per sector = %u\n", bs->sysPhysicalBPS);
+  printf("Reserved Sectors          = %u (%u bytes)\n", bs->bsResSectors, (unsigned)(bs->bsBytesPerSec * bs->bsResSectors));
   
   #if 1
   printf("Sectors per track         = %u\n", bs->bsSecPerTrack);
@@ -1008,7 +1044,11 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #if defined(TEST_SYS)
     printf("test mode ... not write the boot sector.\n");
 #else
+#if defined(REWRITE_ALL_RESERVED_SECTORS)
+    if (WriteBootSectors(drive, newboot) != 0)
+#else
     if (MyAbsReadWrite(drive, 1, 0, newboot, 0x26) != 0)
+#endif
     {
       printf("Can't write new boot sector to drive %c:\n", drive + 'A');
       exit(1);
