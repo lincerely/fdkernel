@@ -37,7 +37,7 @@
 /* #define DDEBUG */
 
 #define SYS_VERSION "v2.5"
-#define SYS98_VERSION "20150624"
+#define SYS98_VERSION "20150703"
 
 #define REWRITE_ALL_RESERVED_SECTORS 1
 
