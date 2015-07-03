@@ -191,8 +191,10 @@ _scroll_wait    dw  1                   ; 011fh スクロールウエイト
 _save_cursor_y  db  0                   ; 0126h セーブカーソル位置Y
                 global  _save_cursor_x
 _save_cursor_x  db  0                   ; 0127h セーブカーソル位置X
+
+                resb    012bh - ($ - entry)
                 global  _save_cursor_attr
-_save_cursor_attr   db  0               ; 0128h セーブカーソルアトリビュート
+_save_cursor_attr   db  0e1h            ; 012bh セーブカーソルアトリビュート
 
 ;               resb    256 - ($ - entry)
                 resb    2d00h - ($ - entry)

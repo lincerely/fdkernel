@@ -2100,6 +2100,9 @@ error_carry:
 #define CLEAR_ATTR		(*(UBYTE FAR *)MK_FP(0x0060, 0x0114))
 #define FUNCTION_FLAG	(*(UBYTE FAR *)MK_FP(0x0060, 0x0111))
 #define SCROLL_BOTTOM	(*(UBYTE FAR *)MK_FP(0x0060, 0x0112))
+#define SAVE_CURSOR_X	(*(UBYTE FAR *)MK_FP(0x0060, 0x0127))
+#define SAVE_CURSOR_Y	(*(UBYTE FAR *)MK_FP(0x0060, 0x0126))
+#define SAVE_PUT_ATTR	(*(UBYTE FAR *)MK_FP(0x0060, 0x012b))
 
 struct progkey {
 	UBYTE *table;
@@ -2381,6 +2384,25 @@ STATIC VOID parse_esc(UBYTE c)
 			case '[':
 				switch(c)
 				{
+#if 1
+					case 's':
+						if(int29_esc_cnt == 2)
+						{
+							SAVE_CURSOR_Y = CURSOR_Y;
+							SAVE_CURSOR_X = CURSOR_X;
+							SAVE_PUT_ATTR = PUT_ATTR;
+						}
+						break;
+					case 'u':
+						if(int29_esc_cnt == 2)
+						{
+							CURSOR_Y = SAVE_CURSOR_Y;
+							CURSOR_X = SAVE_CURSOR_X;
+							PUT_ATTR = SAVE_PUT_ATTR;
+							set_curpos(CURSOR_X, CURSOR_Y);
+						}
+						break;
+#endif
 					case 'f':
 						break;
 
