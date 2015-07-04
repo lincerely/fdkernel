@@ -2675,11 +2675,11 @@ STATIC VOID parse_esc(UBYTE c)
 										if (y > 99) y = 99;
 										push_key_to_conin(0x1b);
 										push_key_to_conin('[');
-										push_key_to_conin('0' + (x/10));
-										push_key_to_conin('0' + (x%10));
-										push_key_to_conin(';');
 										push_key_to_conin('0' + (y/10));
 										push_key_to_conin('0' + (y%10));
+										push_key_to_conin(';');
+										push_key_to_conin('0' + (x/10));
+										push_key_to_conin('0' + (x%10));
 										push_key_to_conin('R');
 										
 									}
