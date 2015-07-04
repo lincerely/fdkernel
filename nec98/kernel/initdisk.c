@@ -877,7 +877,13 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   if (nUnits < 16)
     pokeb(0x60, 0x006c + nUnits, driveParam->driveno);
   if (nUnits < 26)
+  {
+    UBYTE part_flag = 0;
+    if ((pEntry->FileSystem & 0x7f) == 0x21)
+      part_flag |= 2; /* DOS 5+ (32bit sector_count) */
+    pokeb(0x60, 0x2c86 + nUnits*2, part_flag);
     pokeb(0x60, 0x2c87 + nUnits*2, driveParam->driveno);
+  }
 #endif
 #if defined(NEC98)
   if (driveParam->driveno == BootDaua && pEntry->part_index == BootPartIndex)
