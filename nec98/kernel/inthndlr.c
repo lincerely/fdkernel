@@ -2239,7 +2239,7 @@ STATIC VOID clear_funcs(void)
 
 STATIC VOID show_function(void)
 {
-	if(FUNCTION_FLAG != 1)
+	if(FUNCTION_FLAG == 0)
 	{
 		if(CURSOR_Y >= SCROLL_BOTTOM)
 			crt_scroll_up();
@@ -2252,7 +2252,7 @@ STATIC VOID show_function(void)
 
 STATIC VOID redraw_function(void)
 {
-	if(FUNCTION_FLAG == 1)
+	if(FUNCTION_FLAG != 0)
 		put_funcs();
 }
 
