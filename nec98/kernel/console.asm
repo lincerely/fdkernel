@@ -234,7 +234,7 @@ ConInpFlush:
 		xor ah, ah
 		int 18h
 		jmp short .loc_loop
-	.loc_end
+	.loc_end:
 		jmp	_IOExit
 
 ; 08h output
@@ -689,7 +689,7 @@ _programmable_key:
 		dw	.39, 16
 ..@programmable_key_end:
 
-	.00
+	.00:
 
 	.01	db	0feh, ' C1  ', 1bh, 53h	; f1
 							times 16 - ($ - .01) db 0
@@ -733,9 +733,9 @@ _programmable_key:
 	.14	db	'time', 0dh		; shift+f10
 							times 16 - ($ - .14) db 0
 
-	.15					; roll up
+	.15:					; roll up
 							times 6 - ($ - .15) db 0
-	.16					; roll down
+	.16:					; roll down
 							times 6 - ($ - .16) db 0
 	.17	db	1bh, 50h		; ins
 							times 6 - ($ - .17) db 0
@@ -751,7 +751,7 @@ _programmable_key:
 							times 6 - ($ - .1c) db 0
 	.1d	db	1ah			; home/clr
 							times 6 - ($ - .1d) db 0
-	.1e					; help
+	.1e:					; help
 							times 6 - ($ - .1e) db 0
 	.1f	db	1eh			; shift+home/clr
 							times 6 - ($ - .1f) db 0
@@ -856,9 +856,9 @@ _cnvkey_dest:
 	.14	db	'time', 0dh		; shift+f10
 							times 16 - ($ - .14) db 0
 
-	.15					; roll up
+	.15:					; roll up
 							times 16 - ($ - .15) db 0
-	.16					; roll down
+	.16:					; roll down
 							times 16 - ($ - .16) db 0
 	.17	db	1bh, 50h		; ins
 							times 16 - ($ - .17) db 0
@@ -874,7 +874,7 @@ _cnvkey_dest:
 							times 16 - ($ - .1c) db 0
 	.1d	db	1ah			; home/clr
 							times 16 - ($ - .1d) db 0
-	.1e					; help
+	.1e:					; help
 							times 16 - ($ - .1e) db 0
 	.1f	db	1eh			; shift+home/clr
 							times 16 - ($ - .1f) db 0
