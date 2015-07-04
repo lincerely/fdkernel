@@ -333,16 +333,25 @@ _set_curpos:
 
 		xor	ah, ah
 		mov	al, [bp + 6]	; y
-		mov	[_cursor_y], al
+		mov	byte [_cursor_y], al
 		mov	dl, 80
 		mul	dl
 		xor	dh, dh
 		mov	dl, [bp + 4]	; x
-		mov	[_cursor_x], dl
+		mov	byte [_cursor_x], dl
 		add	dx, ax
 		shl	dx, 1
 		mov	ah, 13h
 		int	18h
+
+%if 1
+    mov ah, 12h
+    cmp byte [_cursor_view], 0
+    je .upd_csr_view
+    mov ah, 11h
+  .upd_csr_view:
+    int 18h
+%endif
 
 		pop	ds
 		pop	bp
