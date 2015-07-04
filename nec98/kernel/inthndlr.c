@@ -3059,15 +3059,19 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 
 		case 0x13:				/* ドライブ名-DA/UAリスト取得 */
 			{
-				unsigned char FAR *ptr = MK_FP(r->DS, r->DX);
+				UBYTE FAR *ptr = MK_FP(r->DS, r->DX);
+				UBYTE FAR *daua = MK_FP(0x60, 0x006c);
+				UBYTE FAR *daua2 = MK_FP(0x60, 0x2c86);
 				int i;
 				for(i = 0; i < 0x60; i++)
 					ptr[i] = 0;
-				ptr[0] = 0x80;	/* A: (SASI/IDE HD) */
-#if 0
-				ptr[1] = 0x90;	/* B: (FD) */
-				ptr[2] = 0x91;	/* C: (FD) */
-#endif
+				for(i = 0; i < 16; i++)
+					ptr[i] = daua[i];
+				for(i = 0; i < 27; i++)
+				{
+					ptr[0x1a + i*2] = daua2[i*2];
+					ptr[0x1b + i*2] = daua2[i*2 + 1];
+				}
 			}
 			return;
 
