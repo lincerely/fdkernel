@@ -113,7 +113,7 @@ intr.obj:	$(UKSRCD)intr.asm    $(KSRCD)segs.inc			$(TARGET_LNK)
 io.obj:		$(UKSRCD)io.asm	    $(KSRCD)segs.inc $(HDRD)stacks.inc   $(TARGET_LNK)
 	$(ASSEMBLE)
 
-irqstack.obj:   $(KSRCD)irqstack.asm $(KSRCD)segs.inc			$(TARGET_LNK)
+irqstack.obj:	$(UKSRCD)irqstack.asm $(KSRCD)segs.inc			$(TARGET_LNK)
 	$(ASSEMBLE)
 
 kernel.obj:	$(UKSRCD)kernel.asm  $(KSRCD)segs.inc $(KSRCD)ludivmul.inc 	$(TARGET_LNK)
