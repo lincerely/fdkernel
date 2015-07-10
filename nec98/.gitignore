@@ -35,3 +35,4 @@ kernel/*.sys
 kernel/*.rsp
 bin/K*.sys
 bin/k*.sys
+bin/country.sys
