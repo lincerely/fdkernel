@@ -221,7 +221,22 @@ invalid_opcode_message db 0dh,0ah,'Invalid Opcode at ',0
 
                 global reloc_call_int6_handler
 reloc_call_int6_handler:
-
+%ifdef NEC98
+                ; check whether STOP key is pressed(invoked by keyboard handler)
+                push bp
+                mov bp, sp
+                push bx
+                push ds
+                lds bx, [bp + 2]          ; fetch return address
+                cmp word [bx - 2], 06cdh  ; called with "int 06h"?
+                pop ds
+                pop bx
+                pop bp
+                jne .really_invalid_op
+                ; todo: STOP-key
+                iret
+  .really_invalid_op
+%endif
                 mov si,invalid_opcode_message
                 jmp short zero_message_loop        
 
