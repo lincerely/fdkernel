@@ -150,7 +150,7 @@ INITHEADERS=$(HDRS) $(UKSRCD)init-mod.h $(KSRCD)init-dat.h
 blockio.obj: $(KSRCD)blockio.c    $(HEADERS) $(TARGET_LNK)  
 	$(COMPILECC)
 
-break.obj: $(KSRCD)break.c        $(HEADERS) $(TARGET_LNK)  
+break.obj: $(UKSRCD)break.c        $(HEADERS) $(TARGET_LNK)  
 	$(COMPILECC)
 
 chario.obj: $(UKSRCD)chario.c      $(HEADERS) $(TARGET_LNK)  

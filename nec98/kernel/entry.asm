@@ -39,6 +39,7 @@ segment HMA_TEXT
                 extern   _int29_main
                 extern   _intdc_main
                 extern   _in_processing_stopkey
+                extern   _nec98_stop_key_is_pressed
 %endif
                 extern   _error_tos:wrt DGROUP
                 extern   _char_api_tos:wrt DGROUP
@@ -247,6 +248,8 @@ reloc_call_int6_handler:
                                           ;  - retract heads of all HDD (SASI/SCSI)
                                           ;  - reset color of output character
                                           ;  - flush keybuff and send Ctrl-C to console
+                mov es, [cs: _DGROUP_]
+                mov byte [es: _nec98_stop_key_is_pressed], 1
                 
                 mov byte [_in_processing_stopkey], 0
   .press_stop_exit:

@@ -36,8 +36,14 @@ static BYTE *RcsId =
     "$Id: break.c 885 2004-04-14 15:40:51Z bartoldeman $";
 #endif
 
-#define CB_FLG *(UBYTE FAR*)MK_FP(0x0, 0x471)
-#define CB_MSK 0x80
+#if defined(NEC98)
+UBYTE nec98_stop_key_is_pressed;
+# define CB_FLG nec98_stop_key_is_pressed
+# define CB_MSK 0x01
+#elif defined(IBMPC)
+# define CB_FLG *(UBYTE FAR*)MK_FP(0x0, 0x471)
+# define CB_MSK 0x80
+#endif
 
 /* Check for ^Break/^C.
  * Three sources are available:
