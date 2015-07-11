@@ -154,6 +154,10 @@ _kanjigraph_char    db ' '              ; 008bh 漢字orグラフモード時の
                 global	_shiftfunc_char
 _shiftfunc_char db  ' '                 ; 008ch 通常orシフトファンクション表示時の左下文字
 
+                resb    00a4h - ($ - entry)
+                global _in_processing_stopkey
+_in_processing_stopkey  db  0           ; 00a4h semaphore for STOP key (in int6 handler)
+
                 resb    0110h - ($ - entry)
                 global  _cursor_y
 _cursor_y       db  0                   ; 0110h カーソル位置Y

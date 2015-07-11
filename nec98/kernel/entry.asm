@@ -38,6 +38,7 @@ segment HMA_TEXT
 %ifdef NEC98
                 extern   _int29_main
                 extern   _intdc_main
+                extern   _in_processing_stopkey
 %endif
                 extern   _error_tos:wrt DGROUP
                 extern   _char_api_tos:wrt DGROUP
@@ -229,16 +230,38 @@ reloc_call_int6_handler:
                 push ds
                 lds bx, [bp + 2]          ; fetch return address
                 cmp word [bx - 2], 06cdh  ; called with "int 06h"?
+                jne .really_invalid_op
+                ; STOP key handler (invoked by keyboard handler)
+                push es
+                xor bx, bx
+                mov es, bx
+                mov bl, 60h
+                mov ds, bx
+                cmp byte [_in_processing_stopkey], 0
+                jne .press_stop_exit
+                mov byte [_in_processing_stopkey], 1
+                test byte [es:053ah], 1 ; shift key pressed?
+                jnz .press_stop_exit      ; then SHIFT + STOP (not implemented, for now...)
+                                          ;  - flush keybuff and send Ctrl-S to console
+                                          ; When STOP key is pressed:
+                                          ;  - retract heads of all HDD (SASI/SCSI)
+                                          ;  - reset color of output character
+                                          ;  - flush keybuff and send Ctrl-C to console
+                
+                mov byte [_in_processing_stopkey], 0
+  .press_stop_exit:
+                pop es
                 pop ds
                 pop bx
                 pop bp
-                jne .really_invalid_op
-                ; todo: STOP-key
                 iret
-  .really_invalid_op
+  .really_invalid_op:
+                pop ds
+                pop bx
+                pop bp
 %endif
                 mov si,invalid_opcode_message
-                jmp short zero_message_loop        
+                jmp zero_message_loop        
 
                 global reloc_call_int19_handler
 reloc_call_int19_handler:
