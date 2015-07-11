@@ -239,7 +239,7 @@ reloc_call_int6_handler:
                 mov bl, 60h
                 mov ds, bx
                 cmp byte [_in_processing_stopkey], 0
-                jne .press_stop_exit
+                jne .press_stop_exit_injob
                 mov byte [_in_processing_stopkey], 1
                 test byte [es:053ah], 1 ; shift key pressed?
                 jnz .press_stop_exit      ; then SHIFT + STOP (not implemented, for now...)
@@ -251,8 +251,9 @@ reloc_call_int6_handler:
                 mov es, [cs: _DGROUP_]
                 mov byte [es: _nec98_stop_key_is_pressed], 1
                 
-                mov byte [_in_processing_stopkey], 0
   .press_stop_exit:
+                mov byte [_in_processing_stopkey], 0
+  .press_stop_exit_injob:
                 pop es
                 pop ds
                 pop bx
