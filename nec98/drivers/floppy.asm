@@ -148,7 +148,16 @@ fl_common:
 		push	es
 
 		mov	al,[bp+10h]	; DA/UA
+		push ax
+		and al, 1ch	; FD? 
+		cmp al, 10h
+		pop ax
+		jne .fl_common_hd
+		or ah, 50h				; for FD: MFM, seek
+	.fl_common_hd:
+  %if 0
 		or	al,80h
+  %endif
 		mov	bx,[bp+08h]	; count of sectors to read/write/...
   %ifndef FL_COUNT_BY_BYTE
 		mov	cl,9
@@ -157,7 +166,9 @@ fl_common:
 		mov	cx,[bp+0ch]	; cylinder number
 		mov	dh,[bp+0eh]	; head number
 		mov	dl,[bp+0ah]	; sector number
+  %if 0
 		dec	dl		; 0 base
+  %endif
 		les	bp,[bp+04h]	; Load 32 bit buffer ptr into ES:BP
 
 		int	1bh		; process sectors

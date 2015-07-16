@@ -30,6 +30,13 @@
 #include "dyndata.h"
 
 #if defined(NEC98)
+  /* 0xh, 8xh ... SASI  2xh, Axh ... SCSI */
+# define is_daua_hd(d)  (((d) & 0x58) == 0)
+# define is_daua_sasi(d)  (((d) & 0x7c) == 0)
+# define is_daua_scsi(d)  (((d) & 0x78) == 0x20)
+# define is_daua_fd(d)  (((d) & 0x1c) == 0x10)
+# define is_daua_2hd(d) (((d) & 0xfc) == 0x90)
+# define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
 extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 extern UWORD FAR SasiSectorBytes[4];  /* very important FAR */
 #endif
@@ -61,6 +68,10 @@ COUNT nUnits BSS_INIT(0);
 UWORD BootPartIndex BSS_INIT(0);
 UBYTE DauaSASIs[4] BSS_INIT({0});
 UBYTE BootDaua BSS_INIT(0);
+COUNT nFDUnits BSS_INIT(0);
+UBYTE DauaFDs[8]  BSS_INIT({0});
+UBYTE Daua2HDs[4] BSS_INIT({0});
+UBYTE Daua2DDs[4] BSS_INIT({0});
 #endif
 
 /*
@@ -319,9 +330,7 @@ BOOL ExtLBAForce = FALSE;
 #define init_readdasd_nec98  init_readdasd
 COUNT init_readdasd_nec98(UBYTE drive)
 {
-  /* todo: support removable media */
-  UNREFERENCED_PARAMETER(drive);
-  return DF_FIXED;
+  return is_daua_hd(drive) ? DF_FIXED : 0;
 }
 #elif defined(IBMPC)
 COUNT init_readdasd(UBYTE drive)
@@ -360,12 +369,26 @@ typedef struct {
 
 #if defined(NEC98)
 #define init_getdriveparm_nec98  init_getdriveparm
+STATIC floppy_bpb floppy_bpb_2hd = { 1024, 1, 1, 2, 192, 1232, 0xfe, 2, 8, 2 };
+
 COUNT init_getdriveparm_nec98(UBYTE drive, bpb * pbpbarray)
 {
-  /* todo: support FD */
-  UNREFERENCED_PARAMETER(drive);
-  UNREFERENCED_PARAMETER(pbpbarray);
-  return 8;
+  /* todo: support 2DD, 1.44M */
+  UBYTE drvtype;
+  floppy_bpb *fb;
+  
+  if (is_daua_hd(drive))
+    return 5;
+  /* 1M (2HD) only... */
+  drvtype = 1;
+  fb = &floppy_bpb_2hd;
+  if (pbpbarray)
+  {
+    memcpy(pbpbarray, fb, sizeof(floppy_bpb));
+    ((bpb *)pbpbarray)->bpb_hidden = 0;
+    ((bpb *)pbpbarray)->bpb_huge = 0;
+  }
+  return drvtype;
 }
 #elif defined(IBMPC)
 floppy_bpb floppy_bpbs[5] = {
@@ -463,7 +486,7 @@ static ULONG CHS_to_LBA_nec98(struct CHS *chs, struct DriveParamS *driveparam)
 void printCHS_nec98(char *title, struct CHS *chs)
 {
   /* has no fixed size for head/sect: is often 1/1 in our context */
-  printf("%s%4u-%u-%u", title, chs->Cylinder, chs->Head, chs->Sector + 1);
+  printf("%s%4u-%u-%u", title, chs->Cylinder, chs->Head, chs->Sector);
 }
 #else
 /* IBMPC */
@@ -761,7 +784,7 @@ void DosDefinePartition(struct DriveParamS *driveParam,
 #if defined(NEC98)
 # if defined(FL_COUNT_BY_BYTE)
   phys_bytes_sector = 0;
-  if ((driveParam->driveno & 0x7c) == 0) /* SASI(IDE) #1...#4 */
+  if (is_daua_sasi(driveParam->driveno)) /* SASI(IDE) #1...#4 */
     phys_bytes_sector = SasiSectorBytes[driveParam->driveno & 0x3];
 # else
   phys_bytes_sector = 512;
@@ -769,9 +792,9 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   {
   /* get actual sector size (for block device, not always same for BIOS) from the disk */
 # if defined(FL_COUNT_BY_BYTE)
-    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1024 /* 512 MAX_SEC_SIZE */, (UBYTE FAR *) InitDiskTransferBuffer);
+    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector, 1024 /* 512 MAX_SEC_SIZE */, (UBYTE FAR *) InitDiskTransferBuffer);
 # else
-    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector + 1, 1, (UBYTE FAR *) InitDiskTransferBuffer);
+    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector, 1, (UBYTE FAR *) InitDiskTransferBuffer);
 # endif
     if (rc == 0) rc = *((UWORD FAR *)&InitDiskTransferBuffer[BT_BPB]);
     pddt->ddt_defbpb.bpb_nbyte = (rc == 256 || rc == 512 || rc == 1024 || rc == 2048 || rc == 4096) ? rc : 1024; /* todo: set proper value for BIOS in default */ 
@@ -884,9 +907,7 @@ void DosDefinePartition(struct DriveParamS *driveParam,
     pokeb(0x60, 0x2c86 + nUnits*2, part_flag);
     pokeb(0x60, 0x2c87 + nUnits*2, driveParam->driveno);
   }
-#endif
-#if defined(NEC98)
-  if (driveParam->driveno == BootDaua && pEntry->part_index == BootPartIndex)
+  if (is_daua_hd(BootDaua) && driveParam->driveno == BootDaua && pEntry->part_index == BootPartIndex)
   {
 # if 0
     printf("\nBootUnit = %02x, part_index=%d, BootPartIndex=0x%x, logdrive=%d, nUnits=%d\n", pddt->ddt_driveno, pEntry->part_index, BootPartIndex, pddt->ddt_logdriveno, nUnits);
@@ -1617,6 +1638,32 @@ strange_restart:
 
 #if defined(NEC98)
 #define BIOS_nrdrives_nec98  BIOS_nrdrives
+#define BIOS_nfdrives_nec98 BIOS_nfdrives
+int BIOS_nfdrives_nec98(void)
+{
+  UWORD equip;
+  int units;
+  int i, n;
+  
+  equip = peekw(0, 0x55c); /* DISK_EQUIP */
+  units = 0;
+  /* 2HD only now... */
+  for(i=0, n=0; i<4; ++i)
+  {
+    if (equip & (1U << i))
+      DauaFDs[units++] = Daua2HDs[n++] = 0x90 + i;
+  }
+#if 0
+  for(i=0, n=0; i<4; ++i)
+  {
+    if (equip & (0x1000U << i))
+      DauaFDs[units++] = Daua2DDs[n++] = 0x70 + i;
+  }
+#endif
+  
+  return units;
+}
+
 int BIOS_nrdrives_nec98(void)
 {
   /* todo */
@@ -1770,6 +1817,54 @@ I don't know, if I did it right, but I tried to do it that way. TE
 ***********************************************************************/
 
 #if defined(NEC98)
+STATIC void make_ddt (ddt *pddt, int Unit, int driveno, int flags)
+{
+  bpb *defbpb = &pddt->ddt_defbpb;
+  
+  pddt->ddt_next = MK_FP(0, 0xffff);
+  pddt->ddt_logdriveno = Unit;
+  pddt->ddt_driveno = driveno;
+  pddt->ddt_type = init_getdriveparm(driveno, defbpb);
+  pddt->ddt_ncyl = defbpb->bpb_nsize / defbpb->bpb_nheads / defbpb->bpb_nsecs;
+  pddt->ddt_descflags = init_readdasd(driveno) | flags;
+
+  pddt->ddt_offset = 0;
+  pddt->ddt_serialno = 0x12345678l;
+  memcpy(&pddt->ddt_bpb, defbpb, sizeof(bpb));
+  push_ddt(pddt);
+}
+
+STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
+{
+  COUNT n;
+  for(n=0; n < sizeof(DauaFDs)/sizeof(DauaFDs[0]); ++n)
+  {
+    UBYTE daua = DauaFDs[n];
+    if (daua)
+    {
+      if (InitKernelConfig.InitDiskShowDriveAssignment)
+      {
+        UBYTE ua = daua & 0x0f;
+        printf("\r%c: FD%u ", 'A' + nUnits, nFDUnits);
+        switch(daua & 0xf0)
+        {
+          case 0x30: printf("(1.44M %u)", ua); break;
+          case 0x50: printf("(2D #%u 320K I/F)", ua); break;
+          case 0x70: printf("(2DD #%u)", ua); break;
+          case 0x90: printf("(2HD #%u)", ua); break;
+          default: printf("(unknown DA/UA=%02x)", daua);
+        }
+        printf("\n");
+      }
+      make_ddt(pddt, nUnits, daua, 0);
+      if (BootDaua == daua)
+        LoL->BootDrive = pddt->ddt_logdriveno + 1;
+      ++nUnits;
+      ++nFDUnits;
+    }
+  }
+}
+
 #elif defined(IBMPC)
 STATIC void make_ddt (ddt *pddt, int Unit, int driveno, int flags)
 {
@@ -1797,18 +1892,28 @@ void ReadAllPartitionTables(void)
 
   int HardDrive;
   int nHardDisk;
-#if defined(IBMPC)
   ddt nddt;
+#if defined(IBMPC)
   static iregs regs;
 #endif
 
 #if defined(NEC98)
+  COUNT nFloppyRest;
   BootDaua = peekb(0, 0x584); /* DISK_BOOT */
   BootPartIndex = peekw(0x0, 0x3fe); /* fetch boot partition from BOOTPART_SCRATCHPAD (see boot.asm) */
   if ((BootPartIndex & 0xff00) == 0x100)  /* boot from HD with 256bytes/sector */
     BootPartIndex = (BootPartIndex & 0xff) / 32;
   else                                /* or (probably) 512bytes/sector */
     BootPartIndex = (BootPartIndex & 0x1ff) / 32;
+  
+  nUnits = 0;
+  nFloppyRest = BIOS_nfdrives();
+  if (nFloppyRest > 0 && is_daua_fd(BootDaua))
+  {
+  
+    make_floppy_ddts(&nddt, nFloppyRest);
+    nFloppyRest = 0;
+  }
 #elif defined(IBMPC)
   /* quick adjustment of diskette parameter table */
   fmemcpy(int1e_table, *(char FAR * FAR *)MK_FP(0, 0x1e*4), sizeof(int1e_table));
@@ -1839,14 +1944,10 @@ void ReadAllPartitionTables(void)
     /* set up the DJ method : multiple logical drives */
     make_ddt(&nddt, 1, 0, DF_MULTLOG);
   }
-#endif /* IBMPC */
 
   /* Initial number of disk units                                 */
-#if defined(NEC98)
-  nUnits = 0; /* todo */
-#else
   nUnits = 2;
-#endif
+#endif /* IBMPC */
 
   nHardDisk = BIOS_nrdrives();
   if (nHardDisk > LENGTH(foundPartitions))
@@ -1930,6 +2031,10 @@ void ReadAllPartitionTables(void)
       ProcessDisk(SCAN_PRIMARY2, HardDrive, foundPartitions[HardDrive]);
     }
   }
+#if defined(NEC98) /* test */
+  if (nFloppyRest > 0)
+    make_floppy_ddts(&nddt, nFloppyRest);
+#endif
 }
 
 /* disk initialization: returns number of units */

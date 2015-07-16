@@ -200,6 +200,19 @@ static dsk_proc * const dispatch[NENTRY] =
 
 #define hd(x)   ((x) & DF_FIXED)
 
+#if defined(NEC98)
+  /* 0xh, 8xh ... SASI  2xh, Axh ... SCSI */
+# define is_daua_hd(d)  (((d) & 0x58) == 0)
+# define is_daua_sasi(d)  (((d) & 0x7c) == 0)
+# define is_daua_scsi(d)  (((d) & 0x78) == 0x20)
+# define is_daua_fd(d)  (((d) & 0x1c) == 0x10)
+# define is_daua_2hd(d) (((d) & 0xfc) == 0x90)
+# define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
+
+STATIC bpb nec98_bpb_2hd = { 1024, 1, 1, 2, 0xc0, 2*8*77, 0xfe, 2, 8, 2, 0, 0 };
+STATIC bpb nec98_bpb_2hc = { 512, 1, 1, 2, 0xe0, 2*15*80, 0xf9, 7, 15, 2, 0, 0 };
+#endif
+
 /* ----------------------------------------------------------------------- */
 /*  F U N C T I O N S  --------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -296,6 +309,9 @@ STATIC WORD diskchange(ddt * pddt)
   /* can not detect or error... */
 #if defined(NEC98)
   /* todo... */
+  if (is_daua_fd(pddt->ddt_driveno))
+    return M_DONT_KNOW;
+  
   return tdelay(pddt, 37ul) ? M_NOT_CHANGED : M_NOT_CHANGED;
 #else
   return tdelay(pddt, 37ul) ? M_DONT_KNOW : M_NOT_CHANGED;
@@ -431,6 +447,46 @@ STATIC WORD getbpb(ddt * pddt)
   if (diskchange(pddt) != M_NOT_CHANGED)
     pddt->ddt_descflags |= DF_DISKCHANGE;
 
+#if defined(NEC98)
+  /* test: only for 1M (2HC/2HD) */
+  if (is_daua_fd(pddt->ddt_driveno))
+  {
+    UBYTE daua = pddt->ddt_driveno;
+    UWORD mycx = 0, mydx = 0;
+    UWORD myrc = 0;
+    /* read ID from a disk (quick check for size of sector) */
+    /* todo: move to driver/floppy.asm */
+    _asm {
+      push cx
+      push dx
+      mov ah, 4ah
+      mov al, daua
+      xor cx, cx
+      xor dx, dx
+      int 1bh
+      mov [mycx], cx
+      mov [mydx], dx
+      sbb dx, dx
+      and ax, dx
+      mov byte ptr [myrc], ah
+      pop dx
+      pop cx
+    }
+    if (myrc != 0)
+      return (dskerr(myrc));
+    switch(mycx >> 8)
+    {
+      case 2:   /* 2HC: 512bytes/sector */
+        memcpy(pbpbarray, &nec98_bpb_2hc, sizeof(bpb));
+        break;
+      case 3:   /* 2HD: 1024bytes/sector */
+      default:
+        memcpy(pbpbarray, &nec98_bpb_2hd, sizeof(bpb));
+        break;
+    }
+  }
+#endif
+
   ret = RWzero(pddt, LBA_READ);
   if (ret != 0)
     return (dskerr(ret));
@@ -451,6 +507,9 @@ STATIC WORD getbpb(ddt * pddt)
 
 /*TE ~ 200 bytes*/
 
+#if defined(NEC98)
+  if (DiskTransferBuffer[0x26] == 0x29 || is_daua_hd(pddt->ddt_driveno))
+#endif
   memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], sizeof(bpb));
 
   /*?? */
@@ -510,7 +569,7 @@ STATIC WORD getbpb(ddt * pddt)
 
 #ifdef DSK_DEBUG
   printf("DDT_DRIVENO   = %02x\n", pddt->ddt_driveno);
-  if ((pddt->ddt_driveno & 0xf0) == 0x80)
+  if (is_daua_sasi(pddt->ddt_driveno))
     printf("sectorbytes   = %04x (%u)\n", SasiSectorBytes[pddt->ddt_driveno & 3], SasiSectorBytes[pddt->ddt_driveno & 3]);
 #endif
 #ifdef DSK_DEBUG
@@ -916,10 +975,11 @@ STATIC WORD blockio(rqptr rp, ddt * pddt)
   }
 #if defined(NEC98)
 # if defined(FL_COUNT_BY_BYTE)
-  if ((pddt->ddt_driveno & 0xf0) == 0x80)
+  if (is_daua_sasi(pddt->ddt_driveno))
     phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
 # endif
-  start *= pbpb->bpb_nbyte / phys_bytes_sector;
+  if (is_daua_hd(pddt->ddt_driveno))
+    start *= pbpb->bpb_nbyte / phys_bytes_sector;
 #endif
   start += pddt->ddt_offset;
 
@@ -1055,7 +1115,11 @@ STATIC int LBA_to_CHS(ULONG LBA_address, struct CHS *chs, const ddt * pddt)
 
   chs->Cylinder = (UWORD)LBA_address;
   chs->Head = hsrem / pbpb->bpb_nsecs;
+#if defined(NEC98)
+  chs->Sector =  hsrem % pbpb->bpb_nsecs + is_daua_fd(pddt->ddt_driveno);
+#else
   chs->Sector =  hsrem % pbpb->bpb_nsecs + 1;
+#endif
   return 0;
 }
 
@@ -1119,12 +1183,19 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
   UWORD bytes_sector = pddt->ddt_bpb.bpb_nbyte;   /* bytes per sector, usually 512 */
 #if defined(NEC98)
   /* ...but not usual for many Japanese systems */
+  UWORD cyl;
 # if defined(FL_COUNT_BY_BYTE)
   /* bytes_sector */
   UWORD phys_bytes_sector = 512; /* default */
   
-  if ((pddt->ddt_driveno & 0xf0) == 0x80)
-    phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
+  if (is_daua_sasi(pddt->ddt_driveno))
+     phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
+  else if (is_daua_fd(pddt->ddt_driveno))
+  {
+    phys_bytes_sector = pddt->ddt_bpb.bpb_nbyte;
+    if (phys_bytes_sector == 0)
+      phys_bytes_sector = pddt->ddt_defbpb.bpb_nbyte;
+  }
 # else
   UWORD gra_sector = bytes_sector / 512;
 # endif
@@ -1226,9 +1297,14 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
         if (count > 1)
           count = 1;
 # else
-        if ((unsigned long)chs.Sector + count > (unsigned long)pddt->ddt_bpb.bpb_nsecs + 1L)
         {
-          count = (unsigned)((unsigned long)pddt->ddt_bpb.bpb_nsecs + 1L - chs.Sector);
+          unsigned long nsecs_limit;
+          
+          nsecs_limit = (unsigned long)pddt->ddt_bpb.bpb_nsecs + is_daua_fd(pddt);
+          if ((unsigned long)chs.Sector + count > nsecs_limit)
+          {
+            count = (unsigned)(nsecs_limit - chs.Sector);
+          }
         }
 # endif
 #else
@@ -1238,12 +1314,35 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
         }
 #endif
 
+#if defined(NEC98)
+        cyl = chs.Cylinder;
+        if (is_daua_fd(driveno))
+        {
+          cyl &= 0xffU;
+          switch(phys_bytes_sector)
+          {
+            case 128:
+              break;
+            case 256:
+              cyl |= 0x100; break;
+            case 512:
+              cyl |= 0x200; break;
+            case 1024:
+            default:
+              cyl |= 0x300; break;
+          }
+        }
+#endif
         error_code = (mode == LBA_READ ? fl_read :
                       mode == LBA_VERIFY ? fl_verify :
                       mode ==
                       LBA_FORMAT ? fl_format : fl_write) (driveno,
                                                           chs.Head,
+#if defined(NEC98)
+                                                          cyl,
+#else
                                                           chs.Cylinder,
+#endif
                                                           chs.Sector,
 #if defined(NEC98)
 # if defined(FL_COUNT_BY_BYTE)
@@ -1258,7 +1357,11 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 
         if (error_code == 0 && mode == LBA_WRITE_VERIFY)
         {
-          error_code = fl_verify(driveno, chs.Head, chs.Cylinder,
+#if defined(NEC98)
+          error_code = fl_verify(driveno, chs.Head, cyl,
+#else
+           error_code = fl_verify(driveno, chs.Head, chs.Cylinder,
+#endif
 #if defined(NEC98)
 # if defined(FL_COUNT_BY_BYTE)
                                  chs.Sector, bytes_sector * count, transfer_address);
