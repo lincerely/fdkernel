@@ -951,6 +951,46 @@ STATIC WORD blk_noerr(rqptr rp, ddt * pddt)
   return S_DONE;
 }
 
+#if defined(NEC98)
+# define dskerr_nec98 dskerr
+STATIC WORD dskerr_nec98(COUNT code)
+{
+  switch(code & 0xf0)
+  {
+# if 0
+    case 0x00:    /* (0x08) Corrected Data */
+    case 0x10:    /* (0x10) DDAM Found (no error) */
+# endif
+    case 0x20:    /* DMA boundary */
+      return S_ERROR | E_NOTRDY;
+    case 0x30:    /* ENd of cylinder */
+      return failure(E_FAILURE);
+    case 0x40:    /* Equipment Check */
+      return failure(E_CMD);
+    case 0x50:    /* (DMA) OverRun */
+      return failure(E_FAILURE);
+    case 0x60:    /* Not Ready */
+      return failure(E_NOTRDY);
+    case 0x70:    /* Not Writable */
+      return failure(E_WRPRT);
+    case 0x80:    /* misc. ERror */
+      return failure(E_FAILURE);
+    case 0x90:    /* Time Out */
+      return failure(E_NOTRDY);
+    case 0xa0:    /* Data Error (ID) */
+    case 0xb0:    /* Data Error (DATA) */
+      return failure(E_CRC);
+    case 0xc0:    /* No Data (Sector Not Found) */
+      return (code & 8) ? failure(E_SEEK) : failure(E_FAILURE); /* (0xc8) Seek Error */
+    case 0xd0:    /* Bad Cylinder */
+    case 0xe0:    /* Missing address mark (ID) */
+    case 0xf0:    /* Missing address mark (DATA) */
+    default:
+      return failure(E_FAILURE);
+    
+  }
+}
+#elif defined(IBMPC)
 STATIC WORD dskerr(COUNT code)
 {
 /*      printf("diskette error:\nhead = %d\ntrack = %d\nsector = %d\ncount = %d\n",
@@ -983,6 +1023,9 @@ STATIC WORD dskerr(COUNT code)
         return failure(E_FAILURE);
   }
 }
+#else
+# error need platform-specific dskerr()
+#endif
 
 /*
     translate LBA sectors into CHS addressing
