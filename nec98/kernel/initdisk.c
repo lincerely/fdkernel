@@ -67,6 +67,7 @@ UBYTE InitDiskTransferBuffer[MAX_SEC_SIZE] BSS_INIT({0});
 COUNT nUnits BSS_INIT(0);
 #if defined(NEC98)
 UWORD BootPartIndex BSS_INIT(0);
+UBYTE DauaHDs[12] BSS_INIT({0});
 UBYTE DauaSASIs[4] BSS_INIT({0});
 UBYTE BootDaua BSS_INIT(0);
 COUNT nFDUnits BSS_INIT(0);
@@ -938,7 +939,6 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   if (!drive)
     goto ErrorReturn;
   
-
   regs.a.b.h = 0x84;
   regs.a.b.l = drive;
   regs.b.x = 256;
@@ -1419,10 +1419,11 @@ int Read1LBASector_nec98(struct DriveParamS *driveParam, unsigned drive,
   int num_retries;
   
   drive = driveParam->driveno;
+  if (is_daua_hd(drive)) drive &= 0x7f;
   for (num_retries = 0; num_retries < N_RETRY; num_retries++)
   {
     regs.a.b.h = 0x06;
-    regs.a.b.l = drive & 0x7f;
+    regs.a.b.l = drive;
     regs.d.x = (UWORD)(LBA_address >> 16);
     regs.c.x = (UWORD)LBA_address;
     regs.b.x = 512;
@@ -1671,24 +1672,19 @@ int BIOS_nfdrives_nec98(void)
 
 int BIOS_nrdrives_nec98(void)
 {
-  /* todo */
-# if 1
   UWORD equip;
-  int units;
+  int units, units_all;
   int i;
   
   equip = peekw(0, 0x55c); /* DISK_EQUIP */
-  units = 0;
-  for(i=0; i<4; ++i)
+  units_all = 0;
+  for(i=0, units = 0; i<4; ++i)
   {
     if (equip & (0x0100U << i))
-      DauaSASIs[units++] = 0x80 + i;
+      DauaHDs[units_all++] = DauaSASIs[units++] = 0x80 + i;
   }
   
-  return units;
-# else
-  return peekw(0, 0x55c /* DISK_EQUIP */ ) & 1;  /* only one HD now */
-# endif
+  return units_all;
 }
 #elif defined(IBMPC)
 int BIOS_nrdrives(void)
@@ -1963,7 +1959,11 @@ void ReadAllPartitionTables(void)
   /* Reset the drives                                             */
   for (HardDrive = 0; HardDrive < nHardDisk; HardDrive++)
   {
+#if defined(NEC98)
+    BIOS_drive_reset(DauaHDs[HardDrive]);
+#else
     BIOS_drive_reset(HardDrive);
+#endif
     foundPartitions[HardDrive] = 0;
   }
 
