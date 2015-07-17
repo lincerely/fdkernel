@@ -939,6 +939,11 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   if (!drive)
     goto ErrorReturn;
   
+  /* wake up SASI(IDE) drives... */
+  regs.a.b.h = 0x8e;
+  regs.a.b.l = drive;
+  init_call_intr(0x1b, &regs);
+
   regs.a.b.h = 0x84;
   regs.a.b.l = drive;
   regs.b.x = 256;
