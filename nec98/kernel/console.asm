@@ -269,6 +269,8 @@ segment INIT_TEXT
 
 		global	init_crt
 init_crt:
+		mov	ah, 0ch	; show screen
+		int	18h
 		mov	ah, 11h	; view cursor
 		int	18h
 
