@@ -39,6 +39,7 @@
 # define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
 extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 extern UWORD FAR SasiSectorBytes[4];  /* very important FAR */
+extern WORD FAR maxsecsize;           /* very important FAR */
 #endif
 
 #if defined(NEC98)
@@ -388,6 +389,8 @@ COUNT init_getdriveparm_nec98(UBYTE drive, bpb * pbpbarray)
     ((bpb *)pbpbarray)->bpb_hidden = 0;
     ((bpb *)pbpbarray)->bpb_huge = 0;
   }
+  if (maxsecsize < fb->bpb_nbyte)
+    maxsecsize = fb->bpb_nbyte;
   return drvtype;
 }
 #elif defined(IBMPC)
@@ -950,6 +953,8 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   driveParam->chs.Cylinder = regs.c.x + 1;
   driveParam->sector_size = regs.b.x;
   SasiSectorBytes[drive & 3] = driveParam->sector_size;
+  if (maxsecsize < driveParam->sector_size)
+    maxsecsize = driveParam->sector_size;
 
 #if 0
 /* not needed for PC-98? */
