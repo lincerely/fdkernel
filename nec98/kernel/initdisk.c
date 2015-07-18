@@ -1863,6 +1863,14 @@ STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
         printf("\n");
       }
       make_ddt(pddt, nUnits, daua, 0);
+      /* store DA/UA list in internal work area */
+      if (nUnits < 16)
+        pokeb(0x60, 0x006c + nUnits, daua);
+      if (nUnits < 26)
+      {
+        pokeb(0x60, 0x2c86 + nUnits*2, 0);
+        pokeb(0x60, 0x2c87 + nUnits*2, daua);
+      }
       if (BootDaua == daua)
         LoL->BootDrive = pddt->ddt_logdriveno + 1;
       ++nUnits;
