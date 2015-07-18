@@ -381,8 +381,9 @@ COUNT init_getdriveparm_nec98(UBYTE drive, bpb * pbpbarray)
   
   if (is_daua_hd(drive))
     return 5;
-  /* 1M (2HD) only... */
-  drvtype = 1;
+  /* 4 as 2HD (compatible with 8inches 2D), 2 as 2DD (640/720) */
+  /* 2HD only, for now... */
+  drvtype = 4;
   fb = &floppy_bpb_2hd;
   if (pbpbarray)
   {
