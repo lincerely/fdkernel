@@ -47,7 +47,11 @@ FL_RESET:
 		pop	dx		; return address
 		pop	ax		; DA/UA (AL only)
 		push	dx		; restore address
+  %if 1
+		mov	ah, 07h		; Recalibrate (seek head to track 0) 
+  %else
 		mov	ah,03h		; BIOS reset diskette & fixed disk
+  %endif
 		int	1bh
 %else
 		pop	ax		; return address
