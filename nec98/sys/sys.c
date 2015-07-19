@@ -37,7 +37,7 @@
 /* #define DDEBUG */
 
 #define SYS_VERSION "v2.5"
-#define SYS98_VERSION "20150703"
+#define SYS98_VERSION "20150719"
 
 #define REWRITE_ALL_RESERVED_SECTORS 1
 
@@ -795,9 +795,14 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
         printf("The boot sector has non-extended BPB (maybe FreeDOS98)\n");
 #endif
       }
+      else if(memcmp(bs->bsJump, "\xeb" "\x1c" "\x90", 3) == 0 && bs->bsMedia > 0xf8)
+      {
+        /* probably Floppy, formatted with old NEC MS-DOS (version less than 5) ... */
+        bs->bsHiddenSecs &= 0xffffU;
+      }
       else
       {
-        /* todo: check FDs, and EPSON DOS 3.x HD... */
+        /* todo: check more FDs, and EPSON DOS 3.x HD... */
         printf("unsupported partition!\n");
         exit(1);
       }
