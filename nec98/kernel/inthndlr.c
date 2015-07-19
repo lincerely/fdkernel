@@ -2364,6 +2364,7 @@ STATIC VOID parse_esc(UBYTE c)
 				if(int29_esc_cnt == 1)	/* ESC* 画面消去&カーソルをホームへ */
 				{
 					clear_crt_all();
+					redraw_function();
 					set_curpos(0, 0);
 				}
 				break;
@@ -2655,6 +2656,7 @@ STATIC VOID parse_esc(UBYTE c)
 									break;
 								case '2':	/* ESC[2J 画面消去&カーソルをホームへ */
 									clear_crt_all();
+									redraw_function();
 									set_curpos(0, 0);
 									break;
 							}
