@@ -173,9 +173,9 @@ struct bootsectortype {
 #endif
 };
 
-struct nec3bootsectortype {     /* DOS 3.x HDD PBR (formatted with NEC DOS 3.x) */
-  UBYTE bsJump[3];              /* nec98 DOS3.3 : 0xeb, 0x1f, 0x90 */
-  char OemName[8];              /* nec98 DOS3.3 : all zero? */
+struct nec3hdbootsectortype {   /* DOS 3.x HDD PBR (formatted with NEC DOS 3.x) */
+  UBYTE bsJump[3];              /* nec98 DOS3.3 HD : 0xeb, 0x1f, 0x90 */
+  char OemName[8];              /* nec98 DOS3.3 HD : all zero? */
   UWORD bsBytesPerSec;
   UBYTE bsSecPerClust;
   UWORD bsResSectors;
@@ -184,10 +184,10 @@ struct nec3bootsectortype {     /* DOS 3.x HDD PBR (formatted with NEC DOS 3.x) 
   UWORD bsSectors;
   UBYTE bsMedia;
   UWORD bsFATsecs;
-  ULONG sysPartStart;           /* nec98 DOS3.3 : first phys sector of the partition (same as bsHidden on DOS 5+) */
-  UWORD sysDataOffset;          /* nec98 DOS3.3 : offset of IO.SYS sector (first data sector) */
-  UWORD sysPhysicalBPS;         /* nec98 DOS3.3 : bytes/sector (Physical) */
-  UBYTE unknown[1];             /* nec98 DOS3.3: zero? */
+  ULONG sysPartStart;           /* nec98 DOS3.3 HD : first phys sector of the partition (same as bsHidden on DOS 5+) */
+  UWORD sysDataOffset;          /* nec98 DOS3.3 HD : offset of IO.SYS sector (first data sector) */
+  UWORD sysPhysicalBPS;         /* nec98 DOS3.3 HD : bytes/sector (Physical) */
+  UBYTE unknown[1];             /* nec98 DOS3.3 HD: zero? */
 };
 
 struct bootsectortype32 {
@@ -777,7 +777,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   if (bs->bsBootSignature != 0x29)
   {
     /* non extended BPB */
-    struct nec3bootsectortype *bsnec3 = (struct nec3bootsectortype *)&oldboot;
+    struct nec3hdbootsectortype *bsnec3 = (struct nec3hdbootsectortype *)&oldboot;
     if (memcmp(bsnec3->bsJump, "\xeb" "\x1f" "\x90", 3) == 0 && bsnec3->bsMedia == 0xf8)
     {
       /* if the PBR is NEC DOS 3.3 one, fetch the beginning LBA */
