@@ -2977,6 +2977,19 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 #endif
 					if(r->AL < programmable_keys)
 						fmemcpy(MK_FP(r->DS, r->DX), programmable_key[r->AL].table, programmable_key[r->AL].size);
+					else if (r->AL == 0xff)
+					{
+					  /* workaround: */
+					  UBYTE FAR *p = MK_FP(r->DS, r->DX);
+					  fmemset(p, 0, 0x0312);
+					  /* copy f1~f10 */
+					  fmemcpy(p, programmable_key[0].table, 10 * 16);
+					  /* copy shift+f1~f10 */
+					  fmemcpy(p + 0x0f0, programmable_key[0].table + 10 * 16, 10 * 16);
+					  /* copy rollup, rolldown, ins, del, up, left, right, down, home, help, clr */
+					  fmemcpy(p + 0x1e0, programmable_key[0].table + 20 * 16, 11 * 6);
+					  /* ... todo: and other keys */
+					}
 					return;
 			}
 			break;
@@ -2992,6 +3005,19 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 #endif
 					if(r->AL < programmable_keys)
 						fmemcpy(programmable_key[r->AL].table, MK_FP(r->DS, r->DX), programmable_key[r->AL].size);
+					else if(r->AL == 0xff)
+					{
+					  /* workaround: */
+					  UBYTE FAR *p = MK_FP(r->DS, r->DX);
+					  /* copy f1~f10 */
+					  fmemcpy(programmable_key[0].table, p, 10 * 16);
+					  /* copy shift+f1~f10 */
+					  fmemcpy(programmable_key[0].table + 10 * 16, p + 0x0f0, 10 * 16);
+					  /* copy rollup, rolldown, ins, del, up, left, right, down, home, help, clr */
+					  fmemcpy(programmable_key[0].table + 20 * 16, p + 0x1e0, 11 * 6);
+					  /* ... todo: and other keys */
+					  set_cnvkey_table(0);
+					}
 					set_cnvkey_table(r->AL);
 					redraw_function();
 					return;
