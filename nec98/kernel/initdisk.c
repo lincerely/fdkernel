@@ -40,6 +40,7 @@
 extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 extern UWORD FAR SasiSectorBytes[4];  /* very important FAR */
 extern WORD FAR maxsecsize;           /* very important FAR */
+extern UBYTE FAR FDtype[26];          /* very important FAR */
 #endif
 
 #if defined(NEC98)
@@ -381,7 +382,7 @@ COUNT init_getdriveparm_nec98(UBYTE drive, bpb * pbpbarray)
   
   if (is_daua_hd(drive))
     return 5;
-  /* 4 as 2HD (compatible with 8inches 2D), 2 as 2DD (640/720) */
+  /* 4 as 2HD (compatible with 8inches 2D), 2 as 2DD (640/720) and 7 as 1.44M */
   /* 2HD only, for now... */
   drvtype = 4;
   fb = &floppy_bpb_2hd;
@@ -1651,27 +1652,78 @@ strange_restart:
 #if defined(NEC98)
 #define BIOS_nrdrives_nec98  BIOS_nrdrives
 #define BIOS_nfdrives_nec98 BIOS_nfdrives
+
+STATIC int BIOS_fdtype_nec98(UBYTE daua)
+{
+  iregs r;
+  UBYTE da, ua;
+  if (!is_daua_fd(daua))
+    return 0;
+  
+  da = daua & 0xf0;
+  ua = daua & 0x0f;
+  
+  /* check 1.44M 3mode at first */
+  if (da == 0x30 || da == 0x90)
+  {
+    r.AH = 0xc4;
+    r.AL = 0x30 | ua;
+    init_call_intr(0x1b, &r);
+    if ((r.AH & 0xf0) != 0x40 /* (r.flags & FLG_CARRY) == 0 */)
+    {
+      if (r.AH & 4)
+        return 3;       /* 1.44M supported (3mode, probably) */
+    }
+  }
+  /* check 2HD/2DD 2mode */
+  r.AH = 0x84;
+  r.AL = daua;
+  if (da == 0x90 || da == 0x30)
+    r.AL = 0x10 | ua;
+  if (da == 0x70)
+    r.AL = 0xf0 | ua;
+  init_call_intr(0x1b, &r);
+  if ((r.AH & 0xf0) != 0x40 /* (r.flags & FLG_CARRY) == 0 */)
+  {
+    if (r.AH & 8)
+      return 2;       /* dual-mode */
+  }
+  
+  return 1;
+}
+
 int BIOS_nfdrives_nec98(void)
 {
   UWORD equip;
   int units;
   int i, n;
+  UBYTE *p1, *p2;
   
   equip = peekw(0, 0x55c); /* DISK_EQUIP */
   units = 0;
-  /* 2HD only now... */
   for(i=0, n=0; i<4; ++i)
   {
     if (equip & (1U << i))
-      DauaFDs[units++] = Daua2HDs[n++] = 0x90 + i;
+      Daua2HDs[n++] = 0x90 + i;
   }
-#if 0
   for(i=0, n=0; i<4; ++i)
   {
     if (equip & (0x1000U << i))
-      DauaFDs[units++] = Daua2DDs[n++] = 0x70 + i;
+      Daua2DDs[n++] = 0x70 + i;
   }
-#endif
+  p1 = Daua2HDs;
+  p2 = Daua2DDs;
+  if (is_daua_2dd(BootDaua))
+  {
+    p1 = Daua2DDs;
+    p2 = Daua2HDs;
+  }
+  for(i=0; i<4; ++i)
+    if (p1[i] != 0)
+      DauaFDs[units++] = p1[i];
+  for(i=0; i<4; ++i)
+    if (p2[i] != 0)
+      DauaFDs[units++] = p2[i];
   
   return units;
 }
@@ -1849,20 +1901,32 @@ STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
     UBYTE daua = DauaFDs[n];
     if (daua)
     {
+      UBYTE da, ua;
+      int fd_type;
+      
+      da = daua & 0xf0;
+      ua = daua & 0x0f;
+      fd_type = BIOS_fdtype_nec98(daua);
       if (InitKernelConfig.InitDiskShowDriveAssignment)
       {
-        UBYTE ua = daua & 0x0f;
         printf("\r%c: FD%u ", 'A' + nUnits, nFDUnits);
-        switch(daua & 0xf0)
+        switch(da)
         {
-          case 0x30: printf("(1.44M %u)", ua); break;
-          case 0x50: printf("(2D #%u 320K I/F)", ua); break;
-          case 0x70: printf("(2DD #%u)", ua); break;
-          case 0x90: printf("(2HD #%u)", ua); break;
-          default: printf("(unknown DA/UA=%02x)", daua);
+          case 0x30: case 0x90: printf("2HD #%u", ua); break;
+          case 0x70: printf("2DD #%u", ua); break;
+          case 0x50: printf("320K-2D #%u", ua); break;
+          default:
+            printf("(unknown DA/UA=%02x)", daua);
+        }
+        switch(fd_type)
+        {
+          case 2: printf(" (2HD/2DD)"); break;
+          case 3: printf(" (1.44M/2HD/2DD)"); break;
         }
         printf("\n");
       }
+      if (da == 0x30)       /* assume 1.44M as "2HD" drive */
+        daua = 0x90 | ua;
       make_ddt(pddt, nUnits, daua, 0);
       /* store DA/UA list in internal work area */
       if (nUnits < 16)
@@ -1871,6 +1935,7 @@ STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
       {
         pokeb(0x60, 0x2c86 + nUnits*2, 0);
         pokeb(0x60, 0x2c87 + nUnits*2, daua);
+        FDtype[nUnits] = fd_type;
       }
       if (BootDaua == daua)
         LoL->BootDrive = pddt->ddt_logdriveno + 1;

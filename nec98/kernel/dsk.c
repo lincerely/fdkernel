@@ -80,6 +80,7 @@ UWORD ASMPASCAL floppy_change(UWORD);
 #endif
 
 #if defined(NEC98)
+UBYTE FDtype[26];
 UWORD SasiSectorBytes[4];
 #endif
 
@@ -209,8 +210,11 @@ static dsk_proc * const dispatch[NENTRY] =
 # define is_daua_2hd(d) (((d) & 0xfc) == 0x90)
 # define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
 
+STATIC bpb nec98_bpb_1440 = { 512, 1, 1, 2, 0xe0, 2*18*80, 0xf0, 18, 8, 2, 0, 0 };
 STATIC bpb nec98_bpb_2hd = { 1024, 1, 1, 2, 0xc0, 2*8*77, 0xfe, 2, 8, 2, 0, 0 };
 STATIC bpb nec98_bpb_2hc = { 512, 1, 1, 2, 0xe0, 2*15*80, 0xf9, 7, 15, 2, 0, 0 };
+STATIC bpb nec98_bpb_640 = { 512, 2, 1, 2, 0x70, 2*8*80, 0xfb, 2, 8, 2, 0, 0 };
+
 #endif
 
 /* ----------------------------------------------------------------------- */
@@ -433,6 +437,149 @@ STATIC WORD blk_Media(rqptr rp, ddt * pddt)
     return S_DONE;              /* Floppy */
 }
 
+#if defined(NEC98)
+
+/*
+struct read_id_info {
+  UBYTE cylinder;
+  UBYTE sectorN;
+  UBYTE sector;
+  UBYTE head;
+}
+*/
+
+STATIC WORD fl_readid_nec98(UBYTE daua, UBYTE *idinfo)
+{
+  WORD rc = 0;
+  UBYTE idN = 0, idC = 0, idH = 0, idR = 0;
+  /* read ID from a disk (quick check for size of sector) */
+  /* todo: move to driver/floppy.asm */
+  _asm {
+    push cx
+    push dx
+    mov ah, 4ah
+    mov al, daua
+    xor cx, cx
+    xor dx, dx
+    int 1bh
+    mov [idC], cl
+    mov [idN], ch
+    mov [idR], dl
+    mov [idH], dh
+    sbb dx, dx
+    and ax, dx
+    mov byte ptr [rc], ah
+    pop dx
+    pop cx
+  }
+  if (rc == 0)
+  {
+    idinfo[0] = idC;
+    idinfo[1] = idN;
+    idinfo[2] = idR;
+    idinfo[3] = idH;
+  }
+  
+  return rc;
+}
+
+STATIC WORD fl_sense_nec98(UBYTE daua)
+{
+  /* sense a medium in the drive */
+  /* todo: move to driver/floppy.asm */
+  WORD rc = 0;
+  _asm {
+    push dx
+    mov ah, 04h
+    mov al, [daua]
+    int 1bh
+    sbb dx, dx
+    xor dh, dh
+    and dl, ah
+    mov [rc], dx
+    pop dx
+  }
+  return rc;
+}
+
+STATIC WORD RWzero_nec98(ddt * pddt, UWORD rwmode)
+{
+  STATIC UBYTE fmodes_2hd[] = { 0x90, 0x10, 0x30, 0 };
+  STATIC UBYTE fmodes_2dd[] = { 0x70, 0xf0, 0 };
+  WORD ret = 0xc0;
+  bpb *pbpbarray = &pddt->ddt_bpb;
+  UBYTE daua;
+  UBYTE da, ua;
+  UBYTE chkdaua[4];
+  UBYTE *fmodes;
+  int i, n, fd_modes;
+  
+  fd_modes = FDtype[pddt->ddt_logdriveno];
+  
+  if (fd_modes < 1)
+    return RWzero(pddt, rwmode);
+  
+  if (fd_modes > 3)
+    fd_modes = 3;
+  
+  daua = pddt->ddt_driveno;
+  da = daua & 0xf0;
+  ua = daua & 0x0f;
+  fmodes = fmodes_2hd;
+  fmodes = (da == 0x70 || da == 0xf0) ? fmodes_2dd : fmodes_2hd;
+  chkdaua[0] = daua;
+  for(i=1, n=0; n<fd_modes;)
+  {
+    chkdaua[i] = fmodes[n] | ua;
+    if (daua != chkdaua[i])
+      ++i;
+    ++n;
+  }
+  chkdaua[i] = 0;
+
+  for (i=0; (daua = chkdaua[i]) != 0; ++i)
+  {
+    UBYTE idinfo[4];
+    da = daua & 0xf0;
+    ret = fl_sense_nec98(daua);
+    if (ret != 0)
+      continue;
+
+    ret = fl_readid_nec98(daua, &idinfo);
+    if (ret >= 0xc0)
+    {
+      fl_reset(daua);
+      ret = fl_readid_nec98(daua, &idinfo);
+    }
+    if (ret != 0)
+      continue;
+
+    if (da == 0x30 || da == 0x90 || da == 0xf0)
+    {
+      switch(idinfo[1])
+      {
+        case 2:
+          /* 1.44M or 2HC: 512bytes/sector */
+          memcpy(pbpbarray, da == 0x30 ? &nec98_bpb_1440 : &nec98_bpb_2hc, sizeof(bpb));
+          break;
+        case 3:   /* 2HD: 1024bytes/sector */
+        default:
+          memcpy(pbpbarray, &nec98_bpb_2hd, sizeof(bpb));
+          break;
+      }
+    }
+    if (da == 0x10 || da == 0x70)
+      memcpy(pbpbarray, &nec98_bpb_640, sizeof(bpb));
+    
+    pddt->ddt_driveno = daua;
+    ret = RWzero(pddt, rwmode);
+    break;
+  }
+  
+  return ret;
+}
+#endif
+
 STATIC WORD getbpb(ddt * pddt)
 {
   ULONG count;
@@ -448,46 +595,10 @@ STATIC WORD getbpb(ddt * pddt)
     pddt->ddt_descflags |= DF_DISKCHANGE;
 
 #if defined(NEC98)
-  /* test: only for 1M (2HC/2HD) */
-  if (is_daua_fd(pddt->ddt_driveno))
-  {
-    UBYTE daua = pddt->ddt_driveno;
-    UWORD mycx = 0, mydx = 0;
-    UWORD myrc = 0;
-    /* read ID from a disk (quick check for size of sector) */
-    /* todo: move to driver/floppy.asm */
-    _asm {
-      push cx
-      push dx
-      mov ah, 4ah
-      mov al, daua
-      xor cx, cx
-      xor dx, dx
-      int 1bh
-      mov [mycx], cx
-      mov [mydx], dx
-      sbb dx, dx
-      and ax, dx
-      mov byte ptr [myrc], ah
-      pop dx
-      pop cx
-    }
-    if (myrc != 0)
-      return (dskerr(myrc));
-    switch(mycx >> 8)
-    {
-      case 2:   /* 2HC: 512bytes/sector */
-        memcpy(pbpbarray, &nec98_bpb_2hc, sizeof(bpb));
-        break;
-      case 3:   /* 2HD: 1024bytes/sector */
-      default:
-        memcpy(pbpbarray, &nec98_bpb_2hd, sizeof(bpb));
-        break;
-    }
-  }
-#endif
-
+  ret = RWzero_nec98(pddt, LBA_READ);
+#else
   ret = RWzero(pddt, LBA_READ);
+#endif
   if (ret != 0)
     return (dskerr(ret));
 
@@ -542,6 +653,11 @@ STATIC WORD getbpb(ddt * pddt)
       }
       if (pbpbarray->bpb_nheads == 0)
         pbpbarray->bpb_nheads = 1;  /* workaround for NEC98 HD boot record */
+    }
+    else
+    {
+      /* DOS 3.x (or below) FD : partly usable */
+      memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], 0x1c - 0x0b);
     }
 #else
     pbpbarray->bpb_hidden &= 0x0000ffffUL;  /* old bpb: stored in word */
