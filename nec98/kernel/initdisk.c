@@ -1896,6 +1896,11 @@ STATIC void make_ddt (ddt *pddt, int Unit, int driveno, int flags)
 STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
 {
   COUNT n;
+  UBYTE boot_daua;
+  
+  boot_daua = BootDaua;
+  if ((BootDaua & 0x70) == 0x30)
+    boot_daua = 0x90 | (BootDaua & 0x0f);   /* assume 1.44M as 2HD drive */
   for(n=0; n < sizeof(DauaFDs)/sizeof(DauaFDs[0]); ++n)
   {
     UBYTE daua = DauaFDs[n];
@@ -1925,8 +1930,6 @@ STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
         }
         printf("\n");
       }
-      if (da == 0x30)       /* assume 1.44M as "2HD" drive */
-        daua = 0x90 | ua;
       make_ddt(pddt, nUnits, daua, 0);
       /* store DA/UA list in internal work area */
       if (nUnits < 16)
@@ -1937,7 +1940,7 @@ STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
         pokeb(0x60, 0x2c87 + nUnits*2, daua);
         FDtype[nUnits] = fd_type;
       }
-      if (BootDaua == daua)
+      if (boot_daua == daua)
         LoL->BootDrive = pddt->ddt_logdriveno + 1;
       ++nUnits;
       ++nFDUnits;
