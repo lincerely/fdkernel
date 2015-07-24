@@ -37,7 +37,7 @@
 /* #define DDEBUG */
 
 #define SYS_VERSION "v2.5"
-#define SYS98_VERSION "20150719"
+#define SYS98_VERSION "20150724"
 
 #define REWRITE_ALL_RESERVED_SECTORS 1
 
@@ -125,6 +125,8 @@ BOOL check_space(COUNT, BYTE *);
 BOOL copy(COUNT drive, BYTE * srcPath, BYTE * rootPath, BYTE * file);
 COUNT DiskRead(WORD, WORD, WORD, WORD, WORD, BYTE FAR *);
 COUNT DiskWrite(WORD, WORD, WORD, WORD, WORD, BYTE FAR *);
+BOOL isNEC98(void);
+static BOOL is_fd(COUNT);
 
 #define MAX_SEC_SIZE    (512 * 8)
 #define COPY_SIZE	0x7e00
@@ -322,6 +324,12 @@ int main(int argc, char **argv)
 #endif
   }
 
+  if (!isNEC98() && !is_fd(drive))
+  {
+    printf("To install the FreeDOS(98) kernel into HD, run sys.com on the target PC-98.\n");
+    exit(1);
+  }
+  
   /* Don't try root if src==dst drive or source path given */
   if ((drive == srcDrive)
       || (*srcPath
@@ -401,6 +409,26 @@ VOID dump_sector(unsigned char far * sec)
 
 #endif
 
+
+#if defined(NEC98)
+BOOL isNEC98(void)
+{
+  union REGS r;
+  
+  r.x.ax = 0x0f00;
+  int86(0x10, &r, &r);
+  if (r.h.ah != 0x0f)
+    return FALSE;         /* IBM PC, I guess. */
+  
+  return TRUE;
+}
+#else
+BOOL isNEC98(void)
+{
+  return FALSE;
+}
+#endif
+
 /*
 	get physical bytes per sector
 */
@@ -408,7 +436,8 @@ VOID dump_sector(unsigned char far * sec)
 static UBYTE drive_to_daua(COUNT drive)
 {
   UBYTE daua;
-  if (drive < 0 || drive > 26)
+  
+  if (!isNEC98() || drive < 0 || drive > 26)
     return 0;
   if (drive < 16)
     daua = *(UBYTE FAR *)(0x0060006cUL + drive);
@@ -416,46 +445,53 @@ static UBYTE drive_to_daua(COUNT drive)
     daua = *(UBYTE FAR *)(0x00602c86UL + drive * 2 + 1);
   return daua;
 }
-
-static UBYTE is_fdd(COUNT drive, UBYTE daua)
+static UBYTE is_daua_fd(UBYTE daua)
 {
-  UBYTE da;
-  
-  if (drive >= 27 && daua == 0xff) return 0;
-  if (daua == 0xff) {
-    daua = drive_to_daua(drive);
-  }
-  da = daua >> 4;
+  UBYTE da = daua >> 4;
   if (! (da == 1 || da == 3 || da == 5 || da == 7 || da == 9 || da == 0xf) )
     da = 0;
   
   return da;
 }
+static UBYTE is_daua_hd(UBYTE daua)
+{
+  UBYTE da = daua >> 4;
+  
+  if (! (da == 8 || da == 0xa) )
+    da = 0;
+  return da;
+}
+
+static BOOL is_fd(COUNT drive)
+{
+  union REGS r;
+  
+  if (is_daua_fd(drive_to_daua(drive)))    /* NEC PC-98 standard FDDs */
+    return TRUE;
+  
+  r.x.ax = 0x4408;                        /* quick check: removable? */
+  r.h.bl = drive + 1;
+  intdos(&r, &r);
+  
+  return r.x.ax == 0;
+}
+
 
 static UWORD get_phybps(COUNT drive)
 {
 	union REGS regs;
 	UBYTE daua;
 
-#if 0
-	struct SREGS sregs;
-	UBYTE buf[0x60];
-
-	regs.h.cl	= 0x13;
-	sregs.ds	= FP_SEG(buf);
-	regs.x.dx	= FP_OFF(buf);
-	int86x(0xdc, &regs, &regs, &sregs);
-	daua = buf[0x1a + drive * 2 + 1];
-#else
-	daua = *(UBYTE far *)(0x00602c86UL + drive * 2 + 1);
-#endif
+	daua = drive_to_daua(drive);
+  if (daua == 0)
+    return 0;
 
 	regs.h.ah = 0x84;	/* sense */
 	regs.h.al = daua;
 	regs.x.bx = 0;
 	int86(0x1b, &regs, &regs);
 	if (regs.x.cflag || regs.x.bx == 0) {
-		regs.x.bx = is_fdd(drive, daua) ? 0 : 256;
+		regs.x.bx = is_daua_hd(daua) ? 256 : 0;
 	}
 	return regs.x.bx;
 }
@@ -467,11 +503,11 @@ static int rewrite_bpb_geo(COUNT drive, struct bootsectortype *bs)
   daua = drive_to_daua(drive);
   if (!daua)
     return 0xff;
-  if (is_fdd(drive, daua))
+  if (is_daua_fd(daua))
   {
     *(UWORD *)&(bs->bsDriveNumber) = 0;
   }
-  else
+  else if (is_daua_hd(daua))
   {
     *(UWORD *)&(bs->bsDriveNumber) = daua;
     regs.h.ah = 0x84;
@@ -884,7 +920,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   }
   else if (fs == 12)
   {
-    if (is_fdd(drive, 0xff)) {
+    if (is_fd(drive)) {
       memcpy(newboot, b_fat12f, sizeof(b_fat12f)); /* FAT12(FD) boot sector */
       printf("FAT type: FAT12\n");
       printf("BOOT type: CHS(FDD)\n");
