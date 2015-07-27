@@ -154,7 +154,17 @@ int StdinBusy(void)
   struct dhdr FAR *dev = sft_to_dev(s);
 
   if (dev)
+#if 1
+  {
+    CharCmd(&dev, C_NDREAD);
+    if ((CharReqHdr.r_status & (S_ERROR | S_DONE)) == S_DONE)
+      return (CharReqHdr.r_status & S_BUSY);
+    else
+      return Busy(&dev);
+  }
+#else
     return Busy(&dev);
+#endif
 
   return s->sft_posit >= s->sft_size;
 }
