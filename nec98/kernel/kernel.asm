@@ -200,6 +200,11 @@ _save_cursor_x  db  0                   ; 0127h セーブカーソル位置X
                 global  _save_cursor_attr
 _save_cursor_attr   db  0e1h            ; 012bh セーブカーソルアトリビュート
 
+                ;resb    012ch - ($ - entry)
+                global  _esc_seq_cursor_pos
+_esc_seq_cursor_pos db  1bh, '[24;80R'  ; 012ch - 0133h scratchpad for esc[6n ret
+
+
 ;               resb    256 - ($ - entry)
                 resb    2d00h - ($ - entry)
                 resb    100h            ; psp

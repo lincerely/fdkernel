@@ -135,6 +135,7 @@ _flush_conin:
 		mov byte [cs:conin_buf_cnt], 0
 		retf
 
+%if 0
 ; VOID FAR ASMCFUNC push_key_to_conin(UBYTE c)
 	global _push_key_to_conin
 _push_key_to_conin:
@@ -143,6 +144,26 @@ _push_key_to_conin:
 		mov al, [bp + 6]	; +0:bp +2:ret-off +4:ret-seg +6:arg
 		call push_conin
 		pop bp
+		retf
+%endif
+
+; VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
+	global _push_cursor_pos_to_conin
+_push_cursor_pos_to_conin:
+		push cx
+		push si
+		push ds
+		mov cx, 8
+		mov ax, 0060h
+		mov ds, ax
+		mov si, 012ch
+	.lp:
+		lodsb
+		call push_conin
+		loop .lp
+		pop ds
+		pop si
+		pop cx
 		retf
 
 ; 04h input

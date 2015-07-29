@@ -2305,7 +2305,7 @@ STATIC int atoi(UBYTE *p)
 }
 
 #if 1
-extern VOID FAR ASMCFUNC push_key_to_conin(unsigned char);
+extern VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
 extern VOID FAR ASMCFUNC flush_conin(VOID);
 #endif
 STATIC VOID parse_esc(UBYTE c)
@@ -2671,18 +2671,16 @@ STATIC VOID parse_esc(UBYTE c)
 							{
 								case '6':	/* ESC[6n */
 									{
+										UBYTE FAR *escr = MK_FP(0x60, 0x012c);
 										UBYTE x = CURSOR_X + 1;
 										UBYTE y = CURSOR_Y + 1;
 										if (x > 99) x = 99;
 										if (y > 99) y = 99;
-										push_key_to_conin(0x1b);
-										push_key_to_conin('[');
-										push_key_to_conin('0' + (y/10));
-										push_key_to_conin('0' + (y%10));
-										push_key_to_conin(';');
-										push_key_to_conin('0' + (x/10));
-										push_key_to_conin('0' + (x%10));
-										push_key_to_conin('R');
+										escr[2] = '0' + (y/10);
+										escr[3] = '0' + (y%10);
+										escr[5] = '0' + (x/10);
+										escr[6] = '0' + (x%10);
+										push_cursor_pos_to_conin();
 										
 									}
 									break;
