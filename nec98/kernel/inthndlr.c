@@ -2843,7 +2843,13 @@ VOID ASMCFUNC int29_main(UBYTE c)
 			int29_esc = TRUE;
 			break;
 #endif
-		case 0x08:	/* BS */
+
+    case 0x07:  /* Beep */
+      int29_esc = FALSE;
+      /* todo */
+      break;
+
+		case 0x08:	/* BS (just move left) */
 			int29_esc = FALSE;
 			x = CURSOR_X;
 			y = CURSOR_Y;
@@ -2853,10 +2859,28 @@ VOID ASMCFUNC int29_main(UBYTE c)
 				x = width - 1;
 				y--;
 				if(y < 0)
-					y = 0;
+					break;
 			}
 			set_curpos(x, y);
 			break;
+
+    case 0x09:  /* TAB (right cursor by 8 charwidth) */
+      int29_esc = FALSE;
+      x = CURSOR_X;
+      y = CURSOR_Y;
+      x = (x & ~7U) + 8;
+      if(x >= width)
+      {
+        x = 0;
+        y++;
+        if(y >= height)
+        {
+          y = height - 1;
+          crt_scroll_up();
+        }
+      }
+      set_curpos(x, y);
+      break;
 
 		case 0x0a:	/* LF */
 			int29_esc = FALSE;
@@ -2881,10 +2905,47 @@ VOID ASMCFUNC int29_main(UBYTE c)
 #endif
 			break;
 
+    case 0x0b:  /* up cursor */
+      int29_esc = FALSE;
+      y = CURSOR_Y;
+      if(y > 0)
+        set_curpos(CURSOR_X, y - 1);
+      break;
+    
+    case 0x0c:  /* right cursor */
+      int29_esc = FALSE;
+      x = CURSOR_X;
+      y = CURSOR_Y;
+      x++;
+      if(x >= width)
+      {
+        x = 0;
+        y++;
+        if(y >= height)
+        {
+          y = height - 1;
+          crt_scroll_up();
+        }
+      }
+      set_curpos(x, y);
+      break;
+
 		case 0x0d:	/* CR */
 			int29_esc = FALSE;
 			set_curpos(0, CURSOR_Y);
 			break;
+
+    case 0x1a:  /* Clear Screen */
+      int29_esc = FALSE;
+      clear_crt_all();
+      redraw_function();
+      set_curpos(0, 0);
+      break;
+    
+    case 0x1e:  /* HOME */
+      int29_esc = FALSE;
+      set_curpos(0, 0);
+      break;
 
 		default:
 			if(int29_esc)
