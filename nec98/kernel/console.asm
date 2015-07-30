@@ -284,6 +284,11 @@ _push_cursor_pos_to_conin:
     pop ds
     retf
 
+    global _nec98_flush_bios_keybuf
+_nec98_flush_bios_keybuf:
+    call flush_bios_keybuf
+    retf
+
 
 %else         ; !NEW_CONIN
 

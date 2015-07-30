@@ -40,6 +40,7 @@ segment HMA_TEXT
                 extern   _intdc_main
                 extern   _in_processing_stopkey
                 extern   _nec98_stop_key_is_pressed
+                extern   _nec98_flush_bios_keybuf
 %endif
                 extern   _error_tos:wrt DGROUP
                 extern   _char_api_tos:wrt DGROUP
@@ -233,6 +234,13 @@ reloc_call_int6_handler:
                 cmp word [bx - 2], 06cdh  ; called with "int 06h"?
                 jne .really_invalid_op
                 ; STOP key handler (invoked by keyboard handler)
+                ; when STOP key is pressed:
+                ;  - retract heads of all HDD (SASI/SCSI)
+                ;  - reset color of output character
+                ;  - flush keybuff and send Ctrl-C to console
+                ; or SHIFT + STOP is pressed:
+                ;  - reset color of output character
+                ;  - flush keybuff and send Ctrl-S to console
                 push es
                 xor bx, bx
                 mov es, bx
@@ -241,16 +249,15 @@ reloc_call_int6_handler:
                 cmp byte [_in_processing_stopkey], 0
                 jne .press_stop_exit_injob
                 mov byte [_in_processing_stopkey], 1
-                test byte [es:053ah], 1 ; shift key pressed?
-                jnz .press_stop_exit      ; then SHIFT + STOP (not implemented, for now...)
-                                          ;  - flush keybuff and send Ctrl-S to console
-                                          ; When STOP key is pressed:
-                                          ;  - retract heads of all HDD (SASI/SCSI)
-                                          ;  - reset color of output character
-                                          ;  - flush keybuff and send Ctrl-C to console
-                mov es, [cs: _DGROUP_]
-                mov byte [es: _nec98_stop_key_is_pressed], 1
-                
+                mov bl, 13h
+                test byte [es:053ah], 1               ; shift key pressed?
+                jnz .press_stop_l2
+                mov bl, 03h
+  .press_stop_l2:
+                call far _nec98_flush_bios_keybuf
+                mov byte [00c0h], bl                  ; push Ctrl-C/Ctrl-S to conin_buf
+                mov byte [0103h], 1
+                mov word [0104h], 00c0h
   .press_stop_exit:
                 mov byte [_in_processing_stopkey], 0
   .press_stop_exit_injob:
