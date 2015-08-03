@@ -82,6 +82,7 @@ UWORD ASMPASCAL floppy_change(UWORD);
 #if defined(NEC98)
 UBYTE FDtype[26];
 UWORD SasiSectorBytes[4];
+UWORD ScsiSectorBytes[8];
 #endif
 
 STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
@@ -687,6 +688,8 @@ STATIC WORD getbpb(ddt * pddt)
   printf("DDT_DRIVENO   = %02x\n", pddt->ddt_driveno);
   if (is_daua_sasi(pddt->ddt_driveno))
     printf("sectorbytes   = %04x (%u)\n", SasiSectorBytes[pddt->ddt_driveno & 3], SasiSectorBytes[pddt->ddt_driveno & 3]);
+  else if (is_daua_scsi(pddt->ddt_driveno))
+    printf("sectorbytes   = %04x (%u)\n", ScsiSectorBytes[pddt->ddt_driveno & 7], ScsiSectorBytes[pddt->ddt_driveno & 7]);
 #endif
 #ifdef DSK_DEBUG
   printf("BPB_NBYTE     = %04x\n", pbpbarray->bpb_nbyte);
@@ -1093,6 +1096,8 @@ STATIC WORD blockio(rqptr rp, ddt * pddt)
 # if defined(FL_COUNT_BY_BYTE)
   if (is_daua_sasi(pddt->ddt_driveno))
     phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
+  else if (is_daua_scsi(pddt->ddt_driveno))
+    phys_bytes_sector = ScsiSectorBytes[pddt->ddt_driveno & 7];
 # endif
   if (is_daua_hd(pddt->ddt_driveno))
     start *= pbpb->bpb_nbyte / phys_bytes_sector;
@@ -1306,6 +1311,8 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
   
   if (is_daua_sasi(pddt->ddt_driveno))
      phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
+  else if (is_daua_scsi(pddt->ddt_driveno))
+     phys_bytes_sector = ScsiSectorBytes[pddt->ddt_driveno & 7];
   else if (is_daua_fd(pddt->ddt_driveno))
   {
     phys_bytes_sector = pddt->ddt_bpb.bpb_nbyte;

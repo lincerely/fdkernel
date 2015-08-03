@@ -39,6 +39,7 @@
 # define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
 extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 extern UWORD FAR SasiSectorBytes[4];  /* very important FAR */
+extern UWORD FAR ScsiSectorBytes[8];  /* very important FAR */
 extern WORD FAR maxsecsize;           /* very important FAR */
 extern UBYTE FAR FDtype[26];          /* very important FAR */
 #endif
@@ -70,6 +71,7 @@ COUNT nUnits BSS_INIT(0);
 UWORD BootPartIndex BSS_INIT(0);
 UBYTE DauaHDs[12] BSS_INIT({0});
 UBYTE DauaSASIs[4] BSS_INIT({0});
+UBYTE DauaSCSIs[8] BSS_INIT({0});
 UBYTE BootDaua BSS_INIT(0);
 COUNT nFDUnits BSS_INIT(0);
 UBYTE DauaFDs[8]  BSS_INIT({0});
@@ -792,6 +794,8 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   phys_bytes_sector = 0;
   if (is_daua_sasi(driveParam->driveno)) /* SASI(IDE) #1...#4 */
     phys_bytes_sector = SasiSectorBytes[driveParam->driveno & 0x3];
+  if (is_daua_scsi(driveParam->driveno)) /* SCSI #0...#6 */
+    phys_bytes_sector = ScsiSectorBytes[driveParam->driveno & 0x7];
 # else
   phys_bytes_sector = 512;
 # endif
@@ -935,16 +939,19 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
 
   ExtLBAForce = FALSE;
   memset(driveParam, 0, sizeof *driveParam);
-  if (drive < 0 || drive >= sizeof DauaSASIs / sizeof DauaSASIs[0])
+  if (drive < 0 || drive >= sizeof DauaHDs / sizeof DauaHDs[0])
     goto ErrorReturn;
-  drive = DauaSASIs[drive];
+  drive = DauaHDs[drive];
   if (!drive)
     goto ErrorReturn;
   
   /* wake up SASI(IDE) drives... */
-  regs.a.b.h = 0x8e;
-  regs.a.b.l = drive;
-  init_call_intr(0x1b, &regs);
+  if (is_daua_sasi(drive))
+  {
+    regs.a.b.h = 0x8e;
+    regs.a.b.l = drive;
+    init_call_intr(0x1b, &regs);
+  }
 
   regs.a.b.h = 0x84;
   regs.a.b.l = drive;
@@ -959,7 +966,11 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   driveParam->chs.Sector = regs.d.b.l;
   driveParam->chs.Cylinder = regs.c.x + 1;
   driveParam->sector_size = regs.b.x;
-  SasiSectorBytes[drive & 3] = driveParam->sector_size;
+  if (is_daua_sasi(drive))
+    SasiSectorBytes[drive & 3] = driveParam->sector_size;
+  else if (is_daua_scsi(drive))
+    ScsiSectorBytes[drive & 7] = driveParam->sector_size;
+
   if (maxsecsize < driveParam->sector_size)
     maxsecsize = driveParam->sector_size;
 
@@ -1731,6 +1742,7 @@ int BIOS_nfdrives_nec98(void)
 int BIOS_nrdrives_nec98(void)
 {
   UWORD equip;
+  UBYTE equips;
   int units, units_all;
   int i;
   
@@ -1740,6 +1752,12 @@ int BIOS_nrdrives_nec98(void)
   {
     if (equip & (0x0100U << i))
       DauaHDs[units_all++] = DauaSASIs[units++] = 0x80 + i;
+  }
+  equips = peekb(0, 0x482); /* DISK_EQUIPS */
+  for(i=0, units = 0; i<8; ++i)
+  {
+    if (equips & (1U << i))
+      DauaHDs[units_all++] = DauaSCSIs[units++] = 0xA0 + i;
   }
   
   return units_all;
