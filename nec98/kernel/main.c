@@ -884,9 +884,9 @@ STATIC void CheckContinueBootFromHarddisk(void)
 STATIC VOID InitPC98(VOID)
 {
 #if MAJOR_RELEASE == 5 && MINOR_RELEASE == 00
-  /* DOS 5.0 */
-  *(UWORD FAR *)MK_FP(0x0060, 0x0020) = 0x0100;     /* prod id */
-  *(UBYTE FAR *)MK_FP(0x0060, 0x0022) = 0x00;       /* internal revision */
+  /* DOS 5.0A-H latest */
+  *(UWORD FAR *)MK_FP(0x0060, 0x0020) = 0x0104;     /* prod id */
+  *(UBYTE FAR *)MK_FP(0x0060, 0x0022) = 0x04;       /* internal revision */
 #elif MAJOR_RELEASE == 3 && MINOR_RELEASE == 30
   /* DOS 3.3D */
   *(UWORD FAR *)MK_FP(0x0060, 0x0020) = 0x0000;     /* prod id */
@@ -895,8 +895,8 @@ STATIC VOID InitPC98(VOID)
   /* DOS 6.2 */
   *(UWORD FAR *)MK_FP(0x0060, 0x0020) = 0x0200;     /* prod id */
   *(UBYTE FAR *)MK_FP(0x0060, 0x0022) = 0x01;       /* internal revision */
-#elif MAJOR_RELEASE == 7 && MINOR_RELEASE >= 10
-  /* Windows 98 SE (4.10.2222) */
+#elif MAJOR_RELEASE == 7
+  /* Windows 95 (4.00.950) and Windows 98 SE (4.10.2222) */
   *(UWORD FAR *)MK_FP(0x0060, 0x0020) = 0x0400;     /* prod id */
   *(UBYTE FAR *)MK_FP(0x0060, 0x0022) = 0x01;       /* internal revision */
 #else
