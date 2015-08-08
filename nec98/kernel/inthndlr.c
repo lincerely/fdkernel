@@ -732,7 +732,11 @@ dispatch:
           lr.BH = OEM_ID;
       lr.AL = os_setver_major;
       lr.AH = os_setver_minor;
+#if defined(JAPAN) || defined(NEC98)
+      lr.BL = 0;  /* oops, some tools won't like non-zero values... */
+#else
       lr.BL = REVISION_SEQ;
+#endif
       lr.CX = 0; /* do not set this to a serial number!
                     32RTM won't like non-zero values   */
 
