@@ -3139,16 +3139,27 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 			}
 			break;
 
-		case 0x12:				/* ディスク入換表示置換 */
-			switch(r->AX)
+		case 0x12:  /* Get MS-DOS product version and Machine Type */
+		{
+			UWORD bflag = peekw(0, 0x500);
+			UWORD bflag2 = peekb(0, 0x458);
+			UWORD m = 0;
+			r->AX = peekw(0x60, 0x20);
+			switch(bflag & 0x3801)
 			{
-				case 0x0000:		/* IO.SYSが行う */
-#if 0
-				case 0x0001:		/* ユーザルーチンが行う */
-#endif
-					return;
+				case 0x0000: m = 0; break; /* PC-9801 (the original) */
+				case 0x2000: m = 1; break; /* PC-9801E/F/M */
+				case 0x3001: m = 2; break; /* PC-9801U */
+				case 0x2001: m = (bflag2 & 0x40) ? 4 : 3 ; break; /* PC-98x1 GS/normal */
+				case 0x0800: m = 0x0100; /* PC-98XA */
+				default:
+					m = (bflag & 0x0800) ? 0x0101 : 4; /* check Hi-reso */
 			}
-			break;
+			if (bflag2 & 0x80)  /* check H98 */
+				m |= 0x1000;
+			r->DX = m;
+			return;
+		}
 
 		case 0x13:				/* ドライブ名-DA/UAリスト取得 */
 			{
