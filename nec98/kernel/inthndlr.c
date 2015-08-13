@@ -1253,7 +1253,16 @@ dispatch:
         case 0x06:
           lr.DS = FP_SEG(internal_data);
           lr.SI = FP_OFF(internal_data);
+#ifdef WITHFAT32
           lr.CX = swap_indos - internal_data;
+#else
+          {
+            /* return same size as MS-DOS's one
+               (to avoid buffer overflow for some task swap apps and TSRs) */ 
+            extern BYTE ASM swap_indos_msdos_compatible[];
+            lr.CX = swap_indos_msdos_compatible - internal_data;
+          }
+#endif
           lr.DX = swap_always - internal_data;
           CLEAR_CARRY_FLAG();
           break;

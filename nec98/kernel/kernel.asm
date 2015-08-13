@@ -907,6 +907,10 @@ _VirtOpen       db      0               ;782 - virtual open flag
                 ; controlled variables end at offset 78Ch so pad to end
                 times (78ch - ($ - _internal_data)) db 0
 
+                ; bottom of SDA, for PC/MS-DOS (non FAT32)
+                global _swap_indos_msdos_compatible
+_swap_indos_msdos_compatible:
+
 ;
 ; end of controlled variables
 ;
