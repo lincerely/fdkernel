@@ -139,6 +139,9 @@ _inside_revision    db  0               ; 0022h 内部リビジョン
                 resb    0031h - ($ - entry)
                 global  _promem_under16
 _promem_under16 db  0                   ; 0031h プロテクトメモリサイズ(16M以下/128K単位)
+                ;resb    0032h - ($ - entry)
+                global  _text_vram_segment
+_text_vram_segment  dw 0a000h           ; 0032h segment of Text RAM
 
                 resb    006ch - ($ - entry)
                 global  _daua_list
