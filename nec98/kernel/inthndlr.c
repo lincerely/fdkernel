@@ -3040,6 +3040,23 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 {
 	switch(r->CL)
 	{
+		case 0x09:
+			switch(r->AX)
+			{
+				case 0x0000:		/* Get type of SCSI devices */
+				{
+					UBYTE equips = *(UBYTE FAR *)MK_FP(0, 0x482);
+					UBYTE FAR *p = MK_FP(r->DS, r->DX);
+					int i;
+					for(i=0; i<7; ++i)
+					{
+						p[i] = (equips & (1 << i)) ? 0 : 0xffU; /* HDD only, for now... */
+					}
+					return;
+				}
+			}
+			break;
+
 		case 0x0c:
 			switch(r->AH)
 			{
