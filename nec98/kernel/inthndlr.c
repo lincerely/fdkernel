@@ -3052,6 +3052,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					{
 						p[i] = (equips & (1 << i)) ? 0 : 0xffU; /* HDD only, for now... */
 					}
+					p[7] = 0xff;
 					return;
 				}
 			}
