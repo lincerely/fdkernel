@@ -1347,6 +1347,28 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
     }
   }
 #endif
+
+  /* quick check if the medium (or the partition) is proper for DOS */
+  switch(bytes_sector)
+  {
+    case 128:
+    case 256:
+    case 512:
+    case 1024:
+    case 2048:
+    case 4096:
+    case 8192:
+    case 16384:
+    case 32768:
+      break;
+    default:
+#if defined(NEC98)
+      return 0x60; /* Not Ready */
+#else
+      return 1;
+#endif
+  }
+
         
 /*    
     if (LBA_address+totaltodo > pddt->total_sectors)
