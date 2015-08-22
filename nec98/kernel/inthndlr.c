@@ -2652,6 +2652,11 @@ STATIC VOID parse_esc(UBYTE c)
 						break;
 
 					case 'J':
+						if(int29_esc_cnt == 2)
+						{
+							int29_esc_buf[1] = '0';
+							int29_esc_cnt = 3;
+						}
 						if(int29_esc_cnt == 3)
 						{
 							switch(int29_esc_buf[1])
@@ -2717,6 +2722,11 @@ STATIC VOID parse_esc(UBYTE c)
 #endif
 
 					case 'K':
+						if(int29_esc_cnt == 2)
+						{
+							int29_esc_buf[1] = '0';
+							int29_esc_cnt = 3;
+						}
 						if(int29_esc_cnt == 3)
 						{
 							switch(int29_esc_buf[1])
