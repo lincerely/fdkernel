@@ -2529,12 +2529,15 @@ STATIC VOID parse_esc(UBYTE c)
 						break;
 
 					case 'A':
-						if(int29_esc_cnt >= 3)	/* ESC[<pn>A カーソル上<pn>移動 */
+						if(int29_esc_cnt >= 2)	/* ESC[<pn>A カーソル上<pn>移動 */
 						{
-							int pn;
+							int pn = 1;
 
-							int29_esc_buf[int29_esc_cnt - 1] = '\0';
-							pn = atoi(&int29_esc_buf[1]);
+							if (int29_esc_cnt >= 3)
+							{
+								int29_esc_buf[int29_esc_cnt - 1] = '\0';
+								pn = atoi(&int29_esc_buf[1]);
+							}
 							if(pn > 0)
 							{
 								UBYTE y = CURSOR_Y;
@@ -2551,12 +2554,15 @@ STATIC VOID parse_esc(UBYTE c)
 						break;
 
 					case 'B':
-						if(int29_esc_cnt >= 3)	/* ESC[<pn>B カーソル下<pn>移動 */
+						if(int29_esc_cnt >= 2)	/* ESC[<pn>B カーソル下<pn>移動 */
 						{
-							int pn;
+							int pn = 1;
 
-							int29_esc_buf[int29_esc_cnt - 1] = '\0';
-							pn = atoi(&int29_esc_buf[1]);
+							if(int29_esc_cnt >= 3)
+							{
+								int29_esc_buf[int29_esc_cnt - 1] = '\0';
+								pn = atoi(&int29_esc_buf[1]);
+							}
 							if(pn > 0)
 							{
 								UBYTE y		= CURSOR_Y;
@@ -2574,12 +2580,15 @@ STATIC VOID parse_esc(UBYTE c)
 						break;
 
 					case 'C':
-						if(int29_esc_cnt >= 3)	/* ESC[<pn>C カーソル右<pn>移動 */
+						if(int29_esc_cnt >= 2)	/* ESC[<pn>C カーソル右<pn>移動 */
 						{
-							int pn;
+							int pn = 1;
 
-							int29_esc_buf[int29_esc_cnt - 1] = '\0';
-							pn = atoi(&int29_esc_buf[1]);
+							if(int29_esc_cnt >= 3)
+							{
+								int29_esc_buf[int29_esc_cnt - 1] = '\0';
+								pn = atoi(&int29_esc_buf[1]);
+							}
 							if(pn > 0)
 							{
 								UBYTE x		= CURSOR_X;
@@ -2597,12 +2606,15 @@ STATIC VOID parse_esc(UBYTE c)
 						break;
 
 					case 'D':
-						if(int29_esc_cnt >= 3)	/* ESC[<pn>D カーソル左<pn>移動 */
+						if(int29_esc_cnt >= 2)	/* ESC[<pn>D カーソル左<pn>移動 */
 						{
-							int pn;
+							int pn = 1;
 
-							int29_esc_buf[int29_esc_cnt - 1] = '\0';
-							pn = atoi(&int29_esc_buf[1]);
+							if(int29_esc_cnt >= 3)
+							{
+								int29_esc_buf[int29_esc_cnt - 1] = '\0';
+								pn = atoi(&int29_esc_buf[1]);
+							}
 							if(pn > 0)
 							{
 								UBYTE x = CURSOR_X;
