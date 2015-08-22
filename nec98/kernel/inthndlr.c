@@ -2823,10 +2823,12 @@ VOID ASMCFUNC int29_main(UBYTE c)
 	if(KANJI2_WAIT && iskanji2(c))
 	{
 		UWORD k;
+		int is_half;
 
 		x = CURSOR_X;
 		y = CURSOR_Y;
 		k = sjis2jis(((UWORD)KANJI1_CODE << 8) | c) - 0x2000;
+		is_half = (k > 0x0920 && k <= 0x0b7f); /* SJIS 0x8540..0x869f, maybe */
 		k = (k << 8) | (k >> 8);
 
 		put_crt(x, y, k);
@@ -2842,16 +2844,19 @@ VOID ASMCFUNC int29_main(UBYTE c)
 			}
 		}
 
-		put_crt(x, y, k | 0x80);
-		x++;
-		if(x >= width)
+		if (!is_half)
 		{
-			x = 0;
-			y++;
-			if(y >= height)
+			put_crt(x, y, k | 0x80);
+			x++;
+			if(x >= width)
 			{
-				y = height - 1;
-				crt_scroll_up();
+				x = 0;
+				y++;
+				if(y >= height)
+				{
+					y = height - 1;
+					crt_scroll_up();
+				}
 			}
 		}
 
