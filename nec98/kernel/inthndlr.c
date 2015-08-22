@@ -3110,6 +3110,18 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					  /* ... todo: and other keys */
 					}
 					return;
+
+				case 0x01:		/* data key buffer functions */
+				  switch(r->AL)
+				  {
+				    case 0x00:  /* int DCh,cl=0Ch,ax=0100h: get contents of data key buffer */
+				    {
+				      UBYTE FAR *p = MK_FP(r->DS, r->DX);
+				      fmemset(p, 0, 512 + 2);
+				      return;
+				    }
+				  }
+				  break;
 			}
 			break;
 
@@ -3140,6 +3152,16 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					set_cnvkey_table(r->AL);
 					redraw_function();
 					return;
+
+				case 0x01:		/* data key buffer functions */
+				  switch(r->AL)
+				  {
+				    case 0x00:  /* int DCh,cl=0Dh,ax=0100h: set contents of data key buffer */
+				    {
+				      return; /* just a dummy, for now */
+				    }
+				  }
+				  break;
 			}
 			break;
 
