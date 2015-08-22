@@ -3170,6 +3170,17 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 			{
 				case 0x0000:	/* CTL+FUNCのソフトキー化／解除 */
 					return;
+				case 0x8000:
+				  switch(r->AL)
+				  {
+				    case 0x00:  /* check whether CTL+Func can get from apps */
+				      r->AX = peekb(0x60, 0x10c) & 1;
+				      return;
+				    case 0x02:  /* check whether CTL+XFER/NFER can get from apps */
+				      r->AX = (peekb(0x60, 0x10c)>>1) & 1;
+				      return;
+				  }
+				  break;
 			}
 			break;
 
