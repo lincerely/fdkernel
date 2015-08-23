@@ -2431,6 +2431,8 @@ STATIC VOID parse_esc(UBYTE c)
 									hide_function();
 									break;
 								case CHR2('>', '3'):	/* ESC[>3h 20行モード設定 */
+									clear_crt_all();
+									redraw_function();
 									break;
 								case CHR2('>', '5'):	/* ESC[>5h カーソル非表示 */
 									hide_cursor();
@@ -2450,6 +2452,8 @@ STATIC VOID parse_esc(UBYTE c)
 									show_function();
 									break;
 								case CHR2('>', '3'):	/* ESC[>3l 25行モード設定 */
+									clear_crt_all();
+									redraw_function();
 									break;
 								case CHR2('>', '5'):	/* ESC[>5l カーソル表示 */
 									show_cursor();
