@@ -2541,6 +2541,8 @@ STATIC VOID parse_esc(UBYTE c)
 							{
 								int29_esc_buf[int29_esc_cnt - 1] = '\0';
 								pn = atoi(&int29_esc_buf[1]);
+								if(pn == 0)
+									pn = 1;
 							}
 							if(pn > 0)
 							{
@@ -2566,6 +2568,8 @@ STATIC VOID parse_esc(UBYTE c)
 							{
 								int29_esc_buf[int29_esc_cnt - 1] = '\0';
 								pn = atoi(&int29_esc_buf[1]);
+								if(pn == 0)
+									pn = 1;
 							}
 							if(pn > 0)
 							{
@@ -2592,6 +2596,8 @@ STATIC VOID parse_esc(UBYTE c)
 							{
 								int29_esc_buf[int29_esc_cnt - 1] = '\0';
 								pn = atoi(&int29_esc_buf[1]);
+								if(pn == 0)
+									pn = 1;
 							}
 							if(pn > 0)
 							{
@@ -2618,6 +2624,8 @@ STATIC VOID parse_esc(UBYTE c)
 							{
 								int29_esc_buf[int29_esc_cnt - 1] = '\0';
 								pn = atoi(&int29_esc_buf[1]);
+								if(pn == 0)
+									pn = 1;
 							}
 							if(pn > 0)
 							{
