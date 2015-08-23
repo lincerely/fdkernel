@@ -3209,8 +3209,8 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 						else if (x >= 0xe0)
 							x = 0;
 						if (y >= max_y && y <= 0xdf)
-							y = max_x;
-						else if (x >= 0xe0)
+							y = max_y;
+						else if (y >= 0xe0)
 							y = 0;
 						set_curpos(x, y);
 						return;
