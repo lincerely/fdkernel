@@ -964,7 +964,7 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
 
   driveParam->chs.Head = regs.d.b.h;
   driveParam->chs.Sector = regs.d.b.l;
-  driveParam->chs.Cylinder = regs.c.x + 1;
+  driveParam->chs.Cylinder = regs.c.x;
   driveParam->sector_size = regs.b.x;
   if (is_daua_sasi(drive))
     SasiSectorBytes[drive & 3] = driveParam->sector_size;
