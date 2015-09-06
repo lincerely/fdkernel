@@ -790,22 +790,14 @@ void DosDefinePartition(struct DriveParamS *driveParam,
   pddt->ddt_offset = StartSector;
 
 #if defined(NEC98)
-# if defined(FL_COUNT_BY_BYTE)
   phys_bytes_sector = 0;
   if (is_daua_sasi(driveParam->driveno)) /* SASI(IDE) #1...#4 */
     phys_bytes_sector = SasiSectorBytes[driveParam->driveno & 0x3];
   if (is_daua_scsi(driveParam->driveno)) /* SCSI #0...#6 */
     phys_bytes_sector = ScsiSectorBytes[driveParam->driveno & 0x7];
-# else
-  phys_bytes_sector = 512;
-# endif
   {
   /* get actual sector size (for block device, not always same for BIOS) from the disk */
-# if defined(FL_COUNT_BY_BYTE)
     UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector, 1024 /* 512 MAX_SEC_SIZE */, (UBYTE FAR *) InitDiskTransferBuffer);
-# else
-    UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector, 1, (UBYTE FAR *) InitDiskTransferBuffer);
-# endif
     if (rc == 0) rc = *((UWORD FAR *)&InitDiskTransferBuffer[BT_BPB]);
     pddt->ddt_defbpb.bpb_nbyte = (rc == 256 || rc == 512 || rc == 1024 || rc == 2048 || rc == 4096) ? rc : 1024; /* todo: set proper value for BIOS in default */ 
   }

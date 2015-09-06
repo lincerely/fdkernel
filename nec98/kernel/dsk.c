@@ -1093,12 +1093,10 @@ STATIC WORD blockio(rqptr rp, ddt * pddt)
     return 0x0408;
   }
 #if defined(NEC98)
-# if defined(FL_COUNT_BY_BYTE)
   if (is_daua_sasi(pddt->ddt_driveno))
     phys_bytes_sector = SasiSectorBytes[pddt->ddt_driveno & 3];
   else if (is_daua_scsi(pddt->ddt_driveno))
     phys_bytes_sector = ScsiSectorBytes[pddt->ddt_driveno & 7];
-# endif
   if (is_daua_hd(pddt->ddt_driveno))
     start *= pbpb->bpb_nbyte / phys_bytes_sector;
 #endif
@@ -1305,7 +1303,6 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 #if defined(NEC98)
   /* ...but not usual for many Japanese systems */
   UWORD cyl;
-# if defined(FL_COUNT_BY_BYTE)
   /* bytes_sector */
   UWORD phys_bytes_sector = 512; /* default */
   
@@ -1319,9 +1316,6 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
     if (phys_bytes_sector == 0)
       phys_bytes_sector = pddt->ddt_defbpb.bpb_nbyte;
   }
-# else
-  UWORD gra_sector = bytes_sector / 512;
-# endif
 #endif
   *transferred = 0;
   
@@ -1490,11 +1484,7 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 #endif
                                                           chs.Sector,
 #if defined(NEC98)
-# if defined(FL_COUNT_BY_BYTE)
                                                           bytes_sector * count,
-# else
-                                                          count * gra_sector,
-# endif
 #else
                                                           count,
 #endif
@@ -1508,11 +1498,7 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
            error_code = fl_verify(driveno, chs.Head, chs.Cylinder,
 #endif
 #if defined(NEC98)
-# if defined(FL_COUNT_BY_BYTE)
                                  chs.Sector, bytes_sector * count, transfer_address);
-# else
-                                 chs.Sector, count * gra_sector, transfer_address);
-# endif
 #else
                                  chs.Sector, count, transfer_address);
 #endif
@@ -1539,11 +1525,7 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 
     *transferred += count;
 #if defined(NEC98)
-# if defined(FL_COUNT_BY_BYTE)
     LBA_address += count * (bytes_sector / phys_bytes_sector);
-# else
-    LBA_address += count * gra_sector;
-# endif
 #else
     LBA_address += count;
 #endif

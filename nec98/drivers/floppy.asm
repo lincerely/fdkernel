@@ -159,14 +159,7 @@ fl_common:
 		jne .fl_common_hd
 		or ah, 50h				; for FD: MFM, seek
 	.fl_common_hd:
-  %if 0
-		or	al,80h
-  %endif
 		mov	bx,[bp+08h]	; count of sectors to read/write/...
-  %ifndef FL_COUNT_BY_BYTE
-		mov	cl,9
-		shl	bx,cl		; * 512
-  %endif
 		mov	cx,[bp+0ch]	; cylinder number
 		mov	dh,[bp+0eh]	; head number
 		mov	dl,[bp+0ah]	; sector number
