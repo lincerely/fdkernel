@@ -3210,6 +3210,9 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					        int29_main(ch);
 						return;
 					}
+				case 0x02:  /* set attribute */
+					PUT_ATTR = r->DL;
+					return;
 				case 0x03:		/* 直接コンソール出力(カーソル位置) */
 					{
 						UBYTE x		= r->DL;
@@ -3227,6 +3230,12 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 						set_curpos(x, y);
 						return;
 					}
+				case 0x0a:  /* clear screen */
+					/* just a dummy, for now */
+					return;
+				case 0x0e:  /* set console mode (kanji/graph) */
+					/* just a dummy, for now */
+					return;
 			}
 			break;
 
