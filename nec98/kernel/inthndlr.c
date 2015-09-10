@@ -3289,10 +3289,14 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 	}
 
 #if 1
-	put_string("\nunimplemented internal dos function INTDC cl=");
-	put_unsigned(r->CL, 16, 2);
+	put_string("\nunimplemented internal dos function INTDC cx=");
+	put_unsigned(r->CX, 16, 4);
 	put_string("h ax=");
 	put_unsigned(r->AX, 16, 4);
+	put_string("h bx=");
+	put_unsigned(r->BX, 16, 4);
+	put_string("h dx=");
+	put_unsigned(r->DX, 16, 4);
 	put_string("h\n");
 	put_string("System halted");
 	for(;;);
