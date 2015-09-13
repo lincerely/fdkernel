@@ -249,6 +249,47 @@ STATIC COUNT cpyBuf(VOID FAR * dst, UWORD dstlen, VOID FAR * src,
  *	This function assumes that 'map' is adjusted such that
  *	map[0x80] is the uppercase of character 0x80.
  *== 128 byte chartables, lower range conform to 7bit-US-ASCII ==ska*/
+#if defined(DBCS)
+STATIC VOID upMMemDBCS(CONST struct nlsDBCS FAR *dbcs, CONST UBYTE FAR * map, UBYTE FAR * str, unsigned len)
+{
+  REG unsigned c;
+  UBYTE FAR *d = (UBYTE FAR *)(dbcs->dbcsTbl);
+
+  if (len > 0) do
+  {
+    c = *str;
+    if (c >= 'a' && c <= 'z')
+      *str -= 'a' - 'A';
+    else if (c > 0x7f)
+    {
+      BOOL is_db = FALSE;
+      int n;
+      for(n=0; d[n+1] != '\0'; n += 2)
+      {
+        if (c >= d[n] && c <= d[n+1])
+        {
+          is_db = TRUE;
+            break;
+        }
+      }
+      if (is_db)
+      {
+        /* DBCS lead: skip a trailing byte */
+        if (len <= 1)
+          break;  /* avoid buffer overrun */
+        ++str;
+        --len;
+      }
+      else
+      {
+        *str = map[c];
+      }
+      
+    }
+    ++str;
+  } while(--len);
+}
+#else
 STATIC VOID upMMem(UBYTE FAR * map, UBYTE FAR * str, unsigned len)
 {
   REG unsigned c;
@@ -282,6 +323,7 @@ STATIC VOID upMMem(UBYTE FAR * map, UBYTE FAR * str, unsigned len)
   printf("\"\n");
 #endif
 }
+#endif
 
 /********************************************************************
  ***** Lowlevel interface *******************************************
@@ -410,6 +452,18 @@ STATIC COUNT DosLoadPackage(UWORD cp, UWORD cntry)
   return muxLoadPkg(NLSFUNC_LOAD_PKG, cp, cntry);
 }
 
+#if defined(DBCS)
+STATIC void nlsUpMem(struct nlsPackage FAR * nls, VOID FAR * str, int len)
+{
+  log(("NLS: nlsUpMemDBCS()\n"));
+  upMMemDBCS((struct nlsDBCS FAR*)getTable7(nlsInfo.actPkg), getCharTbl2(nls), (UBYTE FAR *) str, len);
+}
+STATIC void nlsFUpMem(struct nlsPackage FAR * nls, VOID FAR * str, int len)
+{
+  log(("NLS: nlsFUpMemDBCS()\n"));
+  upMMemDBCS((struct nlsDBCS FAR*)getTable7(nlsInfo.actPkg), getCharTbl4(nls), (UBYTE FAR *) str, len);
+}
+#else
 STATIC void nlsUpMem(struct nlsPackage FAR * nls, VOID FAR * str, int len)
 {
   log(("NLS: nlsUpMem()\n"));
@@ -420,6 +474,7 @@ STATIC void nlsFUpMem(struct nlsPackage FAR * nls, VOID FAR * str, int len)
   log(("NLS: nlsFUpMem()\n"));
   upMMem(getCharTbl4(nls), (UBYTE FAR *) str, len);
 }
+#endif
 
 STATIC VOID xUpMem(struct nlsPackage FAR * nls, VOID FAR * str,
                    unsigned len)
