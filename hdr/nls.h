@@ -421,7 +421,7 @@ struct nlsPackage {             /* the contents of one chain item of the
                                    list of NLS packages */
   struct nlsPackage FAR *nxt;   /* next item in chain */
   UWORD cntry, cp;              /* country ID / codepage of this NLS pkg */
-  int flags;                    /* direct access and other flags */
+  short flags;                  /* direct access and other flags */
   /* Note: Depending on the flags above all remaining
      portions may be omitted, if the external NLSFUNC-like
      MUX-14 processor does not require them and performs
@@ -429,7 +429,7 @@ struct nlsPackage {             /* the contents of one chain item of the
      fetch this information itself. */
   UWORD yeschar;                /* yes / no character DOS-65-23 */
   UWORD nochar;
-  unsigned numSubfct;           /* number of supported sub-functions */
+  UWORD numSubfct;              /* number of supported sub-functions */
   struct nlsPointer nlsPointers[1];     /* grows dynamically */
 };
 
@@ -472,7 +472,7 @@ struct nlsInfoBlock {           /* This block contains all information
   char FAR *fname;              /* filename from COUNTRY=;
                                    maybe tweaked by NLSFUNC */
   UWORD sysCodePage;            /* system code page */
-  unsigned flags;               /* implementation flags */
+  UWORD flags;                  /* implementation flags */
   struct nlsPackage FAR *actPkg;        /* current NLS package */
   struct nlsPackage FAR *chain; /* first item of info chain --
                                    hardcoded U.S.A./CP437 */
