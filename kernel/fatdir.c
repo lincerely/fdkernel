@@ -464,16 +464,37 @@ int FileName83Length(BYTE * filename83)
 /* name, so . and .. are not allowed, only straightforward 8+3 names    */
 const char *ConvertNameSZToName83(char *fcbname, const char *dirname)
 {
+#if defined(DBCS)
+  struct nlsDBCS FAR *nlsdbcs = DosGetDBCS();
+#endif
   int i;
   memset(fcbname, ' ', FNAME_SIZE + FEXT_SIZE);
 
   for (i = 0; i < FNAME_SIZE + FEXT_SIZE; i++, dirname++)
   {
     char c = *dirname;
+#if defined(DBCS)
+    unsigned n = dbcs_Mblen(nlsdbcs, dirname);
+#endif
     if (c == '.')
       i = FNAME_SIZE - 1;
     else if (c != '\0' && c != '\\')
+#if defined(DBCS)
+    {
       fcbname[i] = c;
+      if (n > 1)
+      {
+        ++i;
+        ++dirname;
+        if (i < FNAME_SIZE + FEXT_SIZE && *dirname != '\0')
+          fcbname[i] = *dirname;
+        else
+          break;
+      }
+    }
+#else
+      fcbname[i] = c;
+#endif
     else
       break;
   }

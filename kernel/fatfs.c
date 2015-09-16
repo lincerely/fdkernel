@@ -237,7 +237,16 @@ COUNT dos_close(COUNT fd)
 f_node_ptr split_path(const char * path, f_node_ptr fnp)
 {
   /* check if the path ends in a backslash                        */
+#if defined(DBCS)
+  struct nlsDBCS FAR *nlsdbcs = DosGetDBCS();
+  CONST UBYTE *p = (CONST UBYTE *)path;
+  
+  while(*p)
+    p += dbcs_Mblen(nlsdbcs, p);
+  if (*p == '\\')
+#else
   if (path[strlen(path) - 1] == '\\')
+#endif
     return (f_node_ptr) 0;
 
 /*  11/29/99 jt

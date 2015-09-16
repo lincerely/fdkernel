@@ -699,6 +699,53 @@ VOID FAR *DosGetDBCS(void)
 	return getTable7(nlsInfo.actPkg);
 }
 
+#if defined(DBCS)
+/*
+ * helper for dbcs pathname
+ */
+BOOL dbcs_IsInTbl(CONST struct nlsDBCS FAR *nlsdbcs, UBYTE ch)
+{
+  CONST UBYTE FAR *db = (CONST UBYTE FAR *)(nlsdbcs->dbcsTbl);
+  unsigned n;
+  
+  if (ch > 0x7f) for (n=0; n<sizeof(nlsdbcs->dbcsTbl); n+=2)
+  {
+    if (db[n+1] == '\0')
+      break;
+    if (db[n] <= ch && ch <= db[n+1])
+      return TRUE;
+  }
+  
+  return FALSE;
+}
+
+int dbcs_Mblen(CONST struct nlsDBCS FAR *nlsdbcs, CONST void FAR *str)
+{
+  if (dbcs_IsInTbl(nlsdbcs, *(UBYTE FAR *)str))
+  {
+    /* quick check for buffer overrun */
+    if (*((UBYTE FAR *)str+1) < 0x20)
+      return 1;
+    return 2;
+  }
+  return 1;
+}
+
+char FAR *dbcs_FPrev(CONST struct nlsDBCS FAR *nlsdbcs, CONST char FAR *base, CONST char FAR *str)
+{
+  CONST char FAR *p = base;
+  
+  while(*base)
+  {
+    base += dbcs_Mblen(nlsdbcs, base);
+    if (base >= str)
+      break;
+    p = base;
+  }
+  return (char FAR *)p;
+}
+#endif
+
 /********************************************************************
  ***** MUX-14 API ***************************************************
  ********************************************************************/

@@ -180,6 +180,10 @@ const BYTE FAR * GetNameField(const BYTE FAR * lpFileName, BYTE FAR * lpDestFiel
 {
   COUNT nIndex = 0;
   BYTE cFill = ' ';
+#if defined(DBCS)
+  struct nlsDBCS FAR *nlsdbcs = DosGetDBCS();
+  int n;
+#endif
 
   while (*lpFileName != '\0' && !TestFieldSeps(lpFileName)
          && nIndex < nFieldSize)
@@ -197,8 +201,21 @@ const BYTE FAR * GetNameField(const BYTE FAR * lpFileName, BYTE FAR * lpDestFiel
       *pbWildCard = TRUE;
     
     /* store uppercased character, and advance to next char       */
+#if defined(DBCS)
+    n = dbcs_Mblen(nlsdbcs, lpFileName);
+    *lpDestField = *lpFileName;
+    if (nIndex + n <= nFieldSize)
+      lpDestField[1] = lpFileName[1];
+    else
+      n = 1;
+    DosUpFMem(lpDestField, n);
+    lpFileName += n;
+    lpDestField += n;
+    nIndex += n;
+#else
     *lpDestField++ = DosUpFChar(*lpFileName++);
     ++nIndex;
+#endif
   }
 
   /* Blank out remainder of field on exit                         */

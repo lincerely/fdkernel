@@ -396,6 +396,20 @@ STATIC sft FAR *get_free_sft(COUNT * sft_idx)
 
 const char FAR *get_root(const char FAR * fname)
 {
+#if defined(DBCS)
+  struct nlsDBCS FAR *nlsdbcs = DosGetDBCS();
+  CONST char FAR *s = fname;
+  unsigned char c;
+  
+  while((c = *s) != '\0')
+  {
+    if (c == '/' || c == '\\' || c == ':')
+    {
+      fname = s + 1;
+    }
+    s += dbcs_Mblen(nlsdbcs, s);
+  }
+#else
   /* find the end                                 */
   register unsigned length = fstrlen(fname);
   char c;
@@ -411,6 +425,7 @@ const char FAR *get_root(const char FAR * fname)
       break;
     }
   }
+#endif
   return fname;
 }
 

@@ -1831,6 +1831,28 @@ VOID ASMCFUNC int2F_12_handler(struct int2f12regs r)
       char c;
       char FAR *s = MK_FP(r.DS, r.SI);
       char FAR *t = MK_FP(r.ES, r.DI);
+#if defined(DBCS)
+      struct nlsDBCS FAR *nlsdbcs = DosGetDBCS();
+      unsigned n;
+      
+      do
+      {
+        c = *s;
+        n = dbcs_Mblen(nlsdbcs, s);
+        if (n > 1)
+          fmemcpy(t, s, n);
+        else
+        {
+          if (c >= 'a' && c <= 'z')
+            c -= 'a' - 'A';
+          else if (c == '/')
+            c = '\\';
+          *t = c;
+        }
+        s += n;
+        t += n;
+      } while(c);
+#else
 
       do
       {
@@ -1844,6 +1866,7 @@ VOID ASMCFUNC int2F_12_handler(struct int2f12regs r)
         *t++ = c;
       }
       while (c);
+#endif
       break;
     }
 

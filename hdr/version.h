@@ -69,7 +69,11 @@
 
 /* actual version string */
 #if 1
+# if defined(DBCS)
+#define KVS(v,s,o) FREEDOS_NAME " kernel " v "(build 20" #s " DBCS OEM:" #o ") [compiled " __DATE__ "]\n"
+# else
 #define KVS(v,s,o) FREEDOS_NAME " kernel " v "(build 20" #s " OEM:" #o ") [compiled " __DATE__ "]\n"
+# endif
 #else
 #define KVS(v,s,o) "FreeDOS kernel " v "(build 20" #s " OEM:" #o ")" TARGET_PLATFORM_FOR " [compiled " __DATE__ "]\n"
 #endif

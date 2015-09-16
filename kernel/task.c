@@ -240,6 +240,9 @@ STATIC UWORD patchPSP(UWORD pspseg, UWORD envseg, exec_blk FAR * exb,
   mcb FAR *pspmcb;
   int i;
   BYTE FAR *np;
+#if defined(DBCS)
+  struct nlsDBCS far *nlsdbcs = DosGetDBCS();
+#endif
 
   pspmcb = MK_FP(pspseg, 0);
   ++pspseg;
@@ -267,15 +270,25 @@ STATIC UWORD patchPSP(UWORD pspseg, UWORD envseg, exec_blk FAR * exb,
   np = fnam;
   for (;;)
   {
+#if defined(DBCS)
+    switch(*fnam)
+#else
     switch (*fnam++)
+#endif
     {
       case '\0':
         goto set_name;
       case ':':
       case '/':
       case '\\':
+#if defined(DBCS)
+        np = fnam + 1;
+    }
+    fnam += dbcs_Mblen(nlsdbcs, fnam);
+#else
         np = fnam;
     }
+#endif
   }
 set_name:
   for (i = 0; i < 8 && np[i] != '.' && np[i] != '\0'; i++)

@@ -277,6 +277,11 @@ COUNT DosGetCodepage(UWORD * actCP, UWORD * sysCP);
 COUNT DosSetCodepage(UWORD actCP, UWORD sysCP);
 VOID FAR *DosGetDBCS(void);
 UWORD ASMCFUNC syscall_MUX14(DIRECT_IREGS);
+#if defined(DBCS)
+BOOL dbcs_IsInTbl(CONST struct nlsDBCS FAR *nlsdbcs, UBYTE ch);
+int dbcs_Mblen(CONST struct nlsDBCS FAR *nlsdbcs, CONST void FAR *str);
+char FAR *dbcs_FPrev(CONST struct nlsDBCS FAR *nlsdbcs, CONST char FAR *base, CONST char FAR *str);
+#endif
 
 /* prf.c */
 #ifdef DEBUG

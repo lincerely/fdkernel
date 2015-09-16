@@ -33,6 +33,22 @@ static BYTE *mainRcsId =
 #include        "portab.h"
 #include        "globals.h"
 
+#if defined(DBCS)
+STATIC char *dbcs_Prev(CONST struct nlsDBCS FAR *nlsdbcs, CONST char *base, CONST char *str)
+{
+  CONST char *p = base;
+  
+  while(*base)
+  {
+    base += dbcs_Mblen(nlsdbcs, base);
+    if (base >= str)
+      break;
+    p = base;
+  }
+  return (char *)p;
+}
+#endif
+
 /*
     TE-TODO: if called repeatedly by same process, 
     last allocation must be freed. if handle count < 20, copy back to PSP
@@ -77,7 +93,14 @@ long DosMkTmp(BYTE FAR * pathname, UWORD attr)
 
   ptmp = pathname + fstrlen(pathname);
   if (os_major == 5) { /* clone some bad habit of MS DOS 5.0 only */
+#if defined(DBCS)
+    struct nlsDBCS FAR *nlsdbcs = DosGetDBCS();
+    char FAR *plast;
+    plast = dbcs_FPrev(nlsdbcs, pathname, ptmp);
+    if (ptmp == pathname || (*plast != '\\' && *plast != '/'))
+#else
     if (ptmp == pathname || (ptmp[-1] != '\\' && ptmp[-1] != '/'))
+#endif
       *ptmp++ = '\\';
   }
   ptmp[8] = '\0';
@@ -264,6 +287,10 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
   char *p = dest;	  /* dynamic pointer into dest */
   char *rootPos;
   char src0;
+#if defined(DBCS)
+  char *pprev;
+  struct nlsDBCS FAR *nlsdbcs = DosGetDBCS();
+#endif
 
   tn_printf(("truename(%S)\n", src));
 
@@ -455,7 +482,12 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
     else /* skip the absolute path marker */
       src++;
     /* remove trailing separator */
+#if defined(DBCS)
+    pprev = dbcs_Prev(nlsdbcs, dest, p);
+    if (*pprev == '\\') p--;
+#else
     if (p[-1] == '\\') p--;
+#endif
   }
 
   /* append the path specified in src */
@@ -472,7 +504,12 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
        MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
        or "CDS.C\\" fails; in that case the last new segment consists of just
        the \ */
+#if defiened(DBCS)
+    pprev = dbcs_Prev(nlsdbcs, dest, p);
+    if (*pprev != *rootPos)
+#else
     if (p[-1] != *rootPos)
+#endif
       addChar(*rootPos);
     /* skip multiple separators (duplicated slashes) */
     while (*src == '/' || *src == '\\')
@@ -491,9 +528,20 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
         {
           /* ".." entry */
           /* remove last path component */
+#if defined(DBCS)
+          for(;;)
+          {
+            p = dbcs_Prev(nlsdbcs, rootPos, p);
+            if (*p == '\\')
+              break;
+            if (p <= rootPos)
+              return DE_PATHNOTFND;
+          }
+#else
           while(*--p != '\\')
             if (p <= rootPos) /* already on root */
               return DE_PATHNOTFND;
+#endif
         }
         continue;	/* next char */
       }
@@ -502,9 +550,19 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
     errRet:
       /* The error is either PATHNOTFND or FILENOTFND
          depending on if it is not the last component */
+#if defined(DBCS)
+      while(*src)
+      {
+        if (*src == '/' || *src == '\\')
+          return DE_PATHNOTFND;
+        src += dbcs_Mblen(nlsdbcs, src);
+      }
+      return DE_FILENOTFND;
+#else
       return fstrchr(src, '/') == 0 && fstrchr(src, '\\') == 0
         ? DE_FILENOTFND
         : DE_PATHNOTFND;
+#endif
     }
 
     /* normal component */
@@ -515,7 +573,13 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
     state &= ~PNE_DOT;
     while(*src != '/' && *src  != '\\' && *src != '\0')
     {
+#if defined(DBCS)
+      char c = *src;
+      unsigned n = dbcs_Mblen(nlsdbcs, src);
+      ++src;
+#else
       char c = *src++;
+#endif
       if (c == '*')
       {
         /* register the wildcard, even if no '?' is appended */
@@ -552,6 +616,14 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
         if (!DirChar(c)) PATH_ERROR;
         addChar(c);
       }
+#if defined(DBCS)
+      if (n > 1 && i) {
+        --i;
+        c = *src++;
+        if ((unsigned char)c < ' ') PATH_ERROR;
+        addChar(c);
+      }
+#endif
     }
     /* *** end of parse name and extension *** */
   }
