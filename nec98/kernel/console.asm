@@ -182,7 +182,11 @@ push_fkey:
   .l2:
     mov byte [es: 0103h], cl
     sti
+%if 1                        ; temporary fix
+    or di, di               ; always zf=0
+%else
     or cl, cl               ; zf=0 if cl > 0
+%endif
     pop cx
   .exit:
     pop es
@@ -1076,6 +1080,15 @@ _cnvkey_src:
 		dw	0b500h	; ctrl+xfer
 
 		dw	5100h	; nfer
+%if 1
+; temporary fix
+		dw	3500h	; xfer
+		dw	0a500h	; shift + xfer
+		dw	0a100h	; shift + nfer
+		dw	0b100h	; ctrl + nfer
+		dw	01a00h	; ctrl + @
+;_cnvkey_src_end:
+%endif
 
 		times 32 dw 0
 
