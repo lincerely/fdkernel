@@ -484,6 +484,18 @@ void PostConfig(void)
   /* LoL->FCBp = (sfttbl FAR *)&FcbSft; */
   /* LoL->FCBp = KernelAlloc(sizeof(sftheader)
      + Config.cfgFiles * sizeof(sft)); */
+  {
+    /* system FCB dummy */
+    unsigned nfcb = 1; /* Config.cfgFcbs; */
+    unsigned n;
+    BYTE FAR *p = KernelAlloc(6 + (0x3b * nfcb), 'X', 0);
+    *(DWORD FAR *)p = 0xffffffffUL;
+    *(WORD FAR *)(p + 4) = nfcb;
+    for(n=0; n<nfcb; ++n) {
+      *(WORD FAR *)(p + 6 + n * 0x3b) = 0;
+    }
+    LoL->FCBp = (struct sfttbl FAR *)p;
+  }
   sp = LoL->sfthead->sftt_next;
   sp = sp->sftt_next = (sfttbl FAR *)
     KernelAlloc(sizeof(sftheader) + (Config.cfgFiles - 8) * sizeof(sft), 'F',
