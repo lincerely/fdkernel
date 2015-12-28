@@ -1185,7 +1185,11 @@ _ENABLEA20:
     mov ah,5
 UsingXMSdriver:    
     push bx
+    push cx       ; note: some HIMEM.SYS (bundled with Win9x, and NEC MS-DOS 6.2)
+                  ;       will be set cx to zero at just first subfunc 5 call.
+                  ;       (NEC DOS 5.0 and all EPSONs will not)
     call far [cs:_XMSDriverAddress]
+    pop cx
     pop  bx
     retf
 
