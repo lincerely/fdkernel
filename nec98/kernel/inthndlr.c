@@ -2279,8 +2279,10 @@ STATIC VOID show_function(void)
 {
 	if(FUNCTION_FLAG == 0)
 	{
-		if(CURSOR_Y >= SCROLL_BOTTOM)
+		if(CURSOR_Y >= SCROLL_BOTTOM) {
 			crt_scroll_up();
+			set_curpos(CURSOR_X, SCROLL_BOTTOM - 1);
+		}
 		SCROLL_BOTTOM--;
 		put_funcs();
 
