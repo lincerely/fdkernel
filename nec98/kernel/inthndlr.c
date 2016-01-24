@@ -1803,6 +1803,17 @@ VOID ASMCFUNC int2F_12_handler(struct int2f12regs r)
       }
       break;
 
+    case 0x0a:                 /* perform critical error */
+                               /* differs from 0x06 as uses current drive & error on stack */
+      /* code, drive number, error, device header */
+      r.AL = CriticalError(0x38, /* ignore/retry/fail - based on RBIL possible return values */
+                           default_drive, 
+                           r.callerARG1, /* error, from RBIL passed on stack */  
+                           CDSp[(WORD)default_drive].cdsDpb->dpb_device);
+      r.FLAGS |= FLG_CARRY;
+      if (r.AL == 1) r.FLAGS &= ~FLG_CARRY;  /* carry clear if should retry */
+      break;
+
     case 0x0c:                 /* perform "device open" for device, set owner for FCB */
 
       if (lpCurSft->sft_flags & SFT_FDEVICE)
