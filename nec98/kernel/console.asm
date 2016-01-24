@@ -50,40 +50,105 @@ ConTable        db      0Ah
 
 segment	_LOWTEXT
 
-%ifdef NEW_CONIN
-
 seg_0060  dw 0060h
 
-; assume DF=0 (cld)
-chk_conin_buf:
-    push ax
+; 0000:xxxx
+%define KB_BUF_TOP    0502h
+%define KB_BUF_BOTTOM 0522h
+%define KB_BUF_SIZEOF (KB_BUF_BOTTOM - KB_BUF_TOP)
+%define KB_BUF_HEAD   0524h
+%define KB_BUF_TAIL   0526h
+%define KB_COUNT      0528h
+
+; 0060:xxxx
+%define CON_BUF_COUNT 0103h
+%define CON_BUF_HEAD  0104h
+
+
+;
+; replacement function(s) of keyboard bios (int 18h ah=0/1/5)
+;
+
+;
+; peek (and remove) a key stroke from buffer
+; in:     cx = 0  peek a keystroke in the buffer
+;              1  peek a keystroke, and remove it if exist.
+; result: ax keystroke
+;         bh 0 = no keystroke, 1 = has a keystroke
+keybios_peekget_cx:
+    pushf
+    push si
     push ds
-    mov ds, [cs: seg_0060]
     xor ax, ax
-    cmp al, byte [0103h]
+    mov bh, al
+    mov ds, ax
+    cli
+    cmp al, byte [KB_COUNT]
+    je .exit
+    mov si, word [KB_BUF_HEAD]
+    or si, si                   ; (just for a proof)
     jz .exit
-    cmp ax, word [0104h]
+    lodsw                       ; assume DF=0 (cld)
+    mov bh, 1
+    jcxz .exit
+    dec byte [KB_COUNT]
+    ;add si, 2
+    cmp si, KB_BUF_BOTTOM
+    jb .l2
+    mov si, KB_BUF_TOP
+  .l2:
+    mov word [KB_BUF_HEAD], si
   .exit:
+    ;sti
     pop ds
-    pop ax
+    pop si
+    popf
     ret
 
-getpeek_from_conin_buf:
+; int 18h ah=1
+keybios_peek:
+    push cx
+    xor cx, cx
+    call keybios_peekget_cx
+    pop cx
+    ret
+; int 18h ah=5
+keybios_peekget:
+    push cx
+    mov cx, 1
+    call keybios_peekget_cx
+    pop cx
+    ret
+; to work some FEPs correctly, need real BIOS call...
+keybios_remove:
+keybios_get:
+    mov ah, 0
+    int 18h
+    ret
+
+
+; assume DF=0 (cld)
+
+; in cx = 0 peek a key
+;         1 peek and remove a key from conbuf (if exist)
+; result
+;    ZF   0 = a key, 1 = no key
+;         al = keycode
+peekget_from_conin_buf_sub:
     push si
     push ds
     mov ds, [cs: seg_0060]
     cli
-    mov si, word [0104h]
-    xor al, al
+    mov si, word [CON_BUF_HEAD]
     or si, si
     jz .exit        ; zf=1 if no data (al = 0)
-    mov al, byte [0103h]
+    mov al, byte [CON_BUF_COUNT]
     or al, al
     jz .exit        ; zf=1 if no data
     mov al, byte [si]
-    add si, bx
-    mov word [0104h], si
-    sub byte [0103h], bl
+    add si, cx
+    mov word [CON_BUF_HEAD], si
+    sub byte [CON_BUF_COUNT], cl
     or al, al     ; zf=0 if data
   .exit:
     sti
@@ -91,56 +156,144 @@ getpeek_from_conin_buf:
     pop si
     ret
 
-get_from_conin_buf:
-    push bx
-    mov bx, 1
-    call getpeek_from_conin_buf
-    pop bx
+%if 0
+peekget_from_conin_buf:
+    push cx
+    mov cx, 1
+    call peekget_from_conin_buf_sub
+    pop cx
     ret
 
 peek_from_conin_buf:
-    push bx
-    xor bx, bx
-    call getpeek_from_conin_buf
-    pop bx
+    push cx
+    xor cx, cx
+    call peekget_from_conin_buf_sub
+    pop cx
     ret
+%endif
 
 flush_conin_buf:
     push ds
     mov ds, [cs: seg_0060]
-    mov byte [0103h], 0
-    mov word [0104h], 0
+    mov byte [CON_BUF_COUNT], 0
+    mov word [CON_BUF_HEAD], 0
     pop ds
     ret
 
 flush_bios_keybuf:
     push ax
-  %if 1
     push ds
     mov ax, 0
     mov ds, ax
-    cli
-    mov byte [0528h], al      ; KB_BUFFER_SIZ
-    mov ax, 0502h             ; KB_BUF (top of keyboard buffer)
-    mov word [0524h], ax      ; KB_BUFFER_HEAD
-    mov word [0526h], ax      ; KB_BUFFER_TAIL
-    sti
+    mov byte [KB_COUNT], al
+    mov ax, KB_BUF_TOP
+    mov word [KB_BUF_HEAD], ax
+    mov word [KB_BUF_TAIL], ax
     pop ds
-  %else
-    push bx
-  .lp:
-    mov ah, 1
-    int 18h
-    test bh, 1
-    jz .exit
-    mov ah, 0
-    int 18h
-    jmp short .lp
-  .exit:
-    pop bx
-  %endif
     pop ax
     ret
+
+
+check_fkey:
+    push dx
+    push ds
+    mov dx, ax
+    mov ax, DGROUP
+    mov ds, ax
+    mov si, _cnvkey_src
+  .lp:
+    lodsw
+    or ax, ax
+    jz .not_match
+    cmp ax, dx
+    jne .lp
+    sub si, _cnvkey_src + 2
+    add si, si
+    add si, si
+    add si, si
+    add si, _cnvkey_dest  ; si = keystr_ptr and ZF=0
+    cmp byte [si], 0
+    jne .exit
+  .not_match:
+    sub si, si            ; si = 0 and ZF=1
+  .exit:
+    mov ax, dx
+    pop ds
+    pop dx
+    ret
+
+copy_fkey_to_conbuf:
+    push ax
+    push cx
+    push di
+    push ds
+    push es
+    pushf
+    mov es, [cs: seg_0060]
+    mov ax, DGROUP
+    mov ds, ax
+    xor cx, cx
+    mov di, 00c0h
+    cli
+    mov byte [es: CON_BUF_COUNT], cl  ; buf len=0 (for a proof)
+    mov word [es: CON_BUF_HEAD], di
+  .lp:
+    lodsb
+    or al, al
+    jz .exit
+    stosb
+    inc cl
+    cmp cl, 16
+    jb .lp
+  .exit:
+    mov byte [es: CON_BUF_COUNT], cl
+    popf
+    or cl, cl
+    pop es
+    pop ds
+    pop di
+    pop cx
+    pop ax
+    ret
+
+ndwait_sub:
+    push bx
+    push cx
+    push dx
+    push si
+    call peekget_from_conin_buf_sub
+    jnz .exit                     ; ZF=0 if key(s) in conbuf
+  .peekget_key:
+    call keybios_peek
+    or bh, bh
+    jz .exit                      ; ZF=1 (no key in BIOS keybuf)
+    call check_fkey
+    jnz .convert_key
+    or cl, cl
+    jz .peekget_key2
+    sti
+    call keybios_get
+  .peekget_key2:
+    cmp ax, 1a00h                 ; ctrl-@
+    jne .peek_key2
+    or ah, ah                     ; ZF=0 (key code zero)
+    jmp short .exit
+  .peek_key2:
+    or al, al
+    jnz .exit                     ; ZF=0 if keycode != 0
+    jmp short .converted_key
+  .convert_key:
+    call copy_fkey_to_conbuf
+  .converted_key:
+    call keybios_get
+    xor ax, ax                    ; just ZF=1 (no key..."key in conbuf" on the next call)
+  .exit:
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    ret
+
 
 push_fkey:
     push dx
@@ -167,8 +320,8 @@ push_fkey:
     add si, _cnvkey_dest
     cli
     mov di, 00c0h           ; use keybuf 0060:00c0
-    mov byte [es: 0103h], 0  ; buf len=0 (for a proof)
-    mov word [es: 0104h], di
+    mov byte [es: CON_BUF_COUNT], 0  ; buf len=0 (for a proof)
+    mov word [es: CON_BUF_HEAD], di
     push cx
     xor cx, cx
   .lp_cpybuf:
@@ -180,7 +333,7 @@ push_fkey:
     cmp cx, 16
     jb .lp_cpybuf
   .l2:
-    mov byte [es: 0103h], cl
+    mov byte [es: CON_BUF_COUNT], cl
     sti
 %if 1                        ; temporary fix
     or di, di               ; always zf=0
@@ -204,21 +357,20 @@ ConInStat:
     jmp	_IOExit       ; just return
 
 ; 04h input
-    global ConRead
+;    global ConRead
 ConRead:
-    jcxz .do_ioexit
+  jcxz .do_ioexit
+; push ds
+; db 68h, 00h, 0a0h
+; pop ds
+; inc byte [0]
+; pop ds
   .lp1:
-    call chk_conin_buf
-    jz .key_bios
-    call get_from_conin_buf
-    jnz .store
-    jmp short .do_ioexit ;call flush_conin_buf
-  .key_bios:
-    xor ah, ah
-    int 18h
-    call push_fkey
-    jnz .lp1          ; if a keystroke is converted, read from conin_buf
-  .store:
+    push cx
+    mov cx, 1
+    call ndwait_sub
+    pop cx
+    jz .lp1
     stosb
     loop .lp1
   .do_ioexit:
@@ -227,26 +379,12 @@ ConRead:
 ; 05h nondestructive input, no wait
     global CommonNdRdExit
 CommonNdRdExit:
-    call chk_conin_buf
-    jz .keychk_bios
-    call peek_from_conin_buf
-    jnz .set_data
-    call flush_conin_buf
-  .keychk_bios:
-    mov ax, 0100h
-    int 18h
-    or bh, bh
+    push cx
+    xor cx, cx
+    call ndwait_sub
+    pop cx
     jz .no_data
-    call push_fkey
-    jz .l2
-    push ax           ; if a keystroke is converted, remove it from bios keybuff
-    mov ah, 0
-    int 18h
-    pop ax
-    call peek_from_conin_buf   ; then, read from conin_buf
-  .l2:
-    or al, al
-    jz .no_data
+    jmp short .set_data
   .set_data:
     lds bx, [cs:_ReqPktPtr]
     mov [bx + 0dh], al
@@ -258,8 +396,10 @@ CommonNdRdExit:
 ; 07h input flush
     global ConInpFlush
 ConInpFlush:
+    cli
     call flush_conin_buf
     call flush_bios_keybuf
+    sti
   .loc_end:
     jmp _IOExit
 
@@ -293,232 +433,6 @@ _nec98_flush_bios_keybuf:
     call flush_bios_keybuf
     retf
 
-
-%else         ; !NEW_CONIN
-
-conin_buf	times 16 db 0
-conin_buf_cnt	db	0	; 0=empty, 1~=index+1
-
-; in: ax (ah=keycode, al=keydata)
-; out: al
-cnv_conin:
-		push	bx
-		push	cx
-		push	dx
-		push	bp
-		push	ds
-		mov	bx, DGROUP
-		mov	ds, bx
-		xor	bx, bx
-	.loop1:
-		mov	dx, [bx + _cnvkey_src]
-		or	dx, dx
-		jz	.no_cnv
-		cmp	ax, dx
-		je	.cnv
-		inc	bx
-		inc	bx
-		jmp	short .loop1
-	.cnv:
-		mov	cl, 3
-		shl	bx, cl
-		mov	dl, [bx + _cnvkey_dest]
-		or	dl, dl
-		jz	.no_cnv
-		mov	al, dl
-		mov	bp, conin_buf
-		mov	cx, 15
-	.loop2:
-		mov	dl, [bx + _cnvkey_dest + 1]
-		mov	[cs:bp], dl
-		inc	bx
-		inc	bp
-		loop	.loop2
-		jmp	short .done
-
-	.no_cnv:
-		or	al, al
-		jnz	.end
-		xchg	ah, al
-		mov	[cs:conin_buf], ax	; ah, 0
-		xchg	ah, al
-	.done:
-		inc	byte [cs:conin_buf_cnt]
-	.end:
-		pop	ds
-		pop	bp
-		pop	dx
-		pop	cx
-		pop	bx
-		ret
-
-; push_conin
-; push keydata to conin_buf
-; in: al (keydata)
-push_conin:
-		push bx
-		push cx
-		mov cx, 15
-		mov bx, conin_buf
-	.loc_lp:
-		cmp byte [cs:bx], 0
-		je .loc_append
-		inc bx
-		loop .loc_lp
-		jmp short .loc_exit
-	.loc_append:
-		mov byte [cs:bx], al
-		mov byte [cs:bx+1], 0
-		mov byte [cs:conin_buf_cnt], 1
-	.loc_exit:
-		pop cx
-		pop bx
-		ret
-
-; VOID FAR ASMCFUNC flush_conin(void)
-	global _flush_conin
-_flush_conin:
-		mov byte [cs:conin_buf], 0
-		mov byte [cs:conin_buf_cnt], 0
-		retf
-
-%if 0
-; VOID FAR ASMCFUNC push_key_to_conin(UBYTE c)
-	global _push_key_to_conin
-_push_key_to_conin:
-		push bp
-		mov bp, sp
-		mov al, [bp + 6]	; +0:bp +2:ret-off +4:ret-seg +6:arg
-		call push_conin
-		pop bp
-		retf
-%endif
-
-; VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
-	global _push_cursor_pos_to_conin
-_push_cursor_pos_to_conin:
-		push cx
-		push si
-		push ds
-		mov cx, 8
-		mov ax, 0060h
-		mov ds, ax
-		mov si, 012ch
-	.lp:
-		lodsb
-		call push_conin
-		loop .lp
-		pop ds
-		pop si
-		pop cx
-		retf
-
-; 04h input
-		global	ConRead
-ConRead:
-		jcxz	.end
-	.loop:
-		cmp	byte [cs:conin_buf_cnt], 0
-		je	.read_key
-
-		xor	bh, bh
-		mov	bl, [cs:conin_buf_cnt]
-		inc	byte [cs:conin_buf_cnt]
-		mov	al, [cs:bx + (conin_buf - 1)]
-		or	al, al
-		jnz	.set_data
-		mov	byte [cs:conin_buf_cnt], 0
-	.read_key:
-		xor	ah, ah	; read key buf (wait)
-		int	18h
-		call	cnv_conin
-	.set_data:
-		stosb
-		loop	.loop
-	.end:
-		jmp	_IOExit
-
-; 05h nondestructive input, no wait
-		global	CommonNdRdExit
-CommonNdRdExit:
-		cmp	byte [cs:conin_buf_cnt], 0
-		je	.read_key
-
-		xor	bh, bh
-		mov	bl, [cs:conin_buf_cnt]
-		mov	al, [cs:bx + (conin_buf - 1)]
-		or	al, al
-		jnz	.set_data
-	.read_key:
-		mov	ah, 1	; sense key buf (no wait)
-		int	18h
-		or	bh, bh
-		jz	.no_data
-		call	cnv_conin
-		mov	byte [cs:conin_buf_cnt], 0
-	.set_data:
-		lds	bx, [cs:_ReqPktPtr]
-		mov	[bx + 0dh], al
-		jmp	_IOExit
-
-	.no_data:
-		jmp	_IODone
-
-; 06h input status
-		global	ConInStat
-ConInStat:
-		cmp	byte [cs:conin_buf_cnt], 0
-		je	.read_key
-
-		xor	bh, bh
-		mov	bl, [cs:conin_buf_cnt]
-		mov	al, [cs:bx + (conin_buf - 1)]
-		or	al, al
-		jnz	.end
-	.read_key:
-		mov	ah, 1	; sense key buf (no wait)
-		int	18h
-		or	bh, bh
-		jz	.no_data
-		call	cnv_conin
-		mov	byte [cs:conin_buf_cnt], 0
-	.end:
-		jmp	_IOExit
-
-	.no_data:
-		jmp	_IODone
-
-; 07h input flush
-		global	ConInpFlush
-ConInpFlush:
-		mov byte [cs:conin_buf_cnt], 0
-		mov byte [cs:conin_buf], 0
-
-	.loc_loop:
-		mov ah, 1
-		int 18h
-		or bh, bh
-		jz .loc_end
-		xor ah, ah
-		int 18h
-		jmp short .loc_loop
-	.loc_end:
-		jmp	_IOExit
-
-; 08h output
-; 09h output with verify
-		global	ConWrite
-ConWrite:
-		jcxz	.end
-	.loop:
-		mov	al, [es:di]
-		inc	di
-		int	29h
-		loop	.loop
-	.end:
-		jmp	_IOExit
-
-%endif            ; NEW_CONIN
 
 ; for int29
 
@@ -1080,15 +994,6 @@ _cnvkey_src:
 		dw	0b500h	; ctrl+xfer
 
 		dw	5100h	; nfer
-%if 1
-; temporary fix
-		dw	3500h	; xfer
-		dw	0a500h	; shift + xfer
-		dw	0a100h	; shift + nfer
-		dw	0b100h	; ctrl + nfer
-		dw	01a00h	; ctrl + @
-;_cnvkey_src_end:
-%endif
 
 		times 32 dw 0
 
