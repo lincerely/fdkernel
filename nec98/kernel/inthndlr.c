@@ -2909,6 +2909,16 @@ VOID ASMCFUNC int29_main(UBYTE c)
 		is_half = (k > 0x0920 && k <= 0x0b7f); /* SJIS 0x8540..0x869f, maybe */
 		k = (k << 8) | (k >> 8);
 
+		if (x+1 == width && !is_half) { /* wraparound for full width character */
+			put_crt(x, y, CLEAR_CHAR);
+			x = 0;
+			y++;
+			if(y >= height)
+			{
+				y = height - 1;
+				crt_scroll_up();
+			}
+		}
 		put_crt(x, y, k);
 		x++;
 		if(x >= width)
