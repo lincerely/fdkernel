@@ -83,10 +83,10 @@ ifndef WATCOM
 endif
 endif
 
-XCPU=86
-XFAT=32
-XUPX=upx --8086 --best
-XNASM=nasm
+XCPU ?= 86
+XFAT ?= 32
+#XUPX=upx --8086 --best
+XNASM ?= nasm
 MAKE=wmake -ms -h
 XLINK=wlink
 #ALLCFLAGS=-DDEBUG

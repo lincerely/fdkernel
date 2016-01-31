@@ -85,9 +85,9 @@ endif
 
 XCPU ?= 86
 XFAT ?= 16
-#XFAT=32
-XUPX=upx --8086 --best
-XNASM=nasm
+#XFAT ?= 32
+#XUPX=upx --8086 --best
+XNASM ?= nasm
 MAKE=wmake -ms -h
 XLINK=wlink
 #ALLCFLAGS=-DDEBUG
