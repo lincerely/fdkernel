@@ -1118,10 +1118,12 @@ _int0_handler:  jmp 0:reloc_call_int0_handler
 _int6_handler:  jmp 0:reloc_call_int6_handler
                 call near forceEnableA20
 
+%ifdef IBMPC
                 global  _int19_handler
                 extern  reloc_call_int19_handler
 _int19_handler: jmp 0:reloc_call_int19_handler
                 call near forceEnableA20
+%endif
 
                 global  _cpm_entry
                 extern  reloc_call_cpm_entry

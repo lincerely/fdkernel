@@ -274,6 +274,7 @@ reloc_call_int6_handler:
                 mov si,invalid_opcode_message
                 jmp zero_message_loop        
 
+%ifdef IBMPC
                 global reloc_call_int19_handler
 reloc_call_int19_handler:
 ; from Japheth's public domain code (JEMFBHLP.ASM)
@@ -298,6 +299,7 @@ nextitem:       lodsb
                 movsw
                 loop nextitem
                 int 19h
+%endif
 
 ;
 ; Terminate the current process
