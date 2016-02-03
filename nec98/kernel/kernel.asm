@@ -427,9 +427,8 @@ segment CONST
                 ;
                 global  _nul_strtgy
 _nul_strtgy:
-                mov     word [cs:_ReqPktPtr],bx     ;save rq headr
-                mov     word [cs:_ReqPktPtr+2],es
-                retf
+                extern GenStrategy
+                jmp far GenStrategy
 
                 ;
                 ; NUL device interrupt
@@ -438,7 +437,9 @@ _nul_strtgy:
 _nul_intr:
                 push    es
                 push    bx
-                les     bx,[cs:_ReqPktPtr]            ;es:bx--> rqheadr
+                mov bx, LGROUP
+                mov es, bx
+                les bx, [es:_ReqPktPtr]
                 cmp     byte [es:bx+2],4    ;if read, set 0 read
                 jne     no_nul_read
                 mov     word [es:bx+12h],0
