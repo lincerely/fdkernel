@@ -438,13 +438,13 @@ _nec98_flush_bios_keybuf:
 
 CRT_STS_FLAG	equ	053ch
 
-	extern	_scroll_bottom
-	extern	_cursor_view
-	extern	_cursor_x
-	extern	_cursor_y
-	extern	_clear_char
-	extern	_clear_attr
-	extern	_put_attr
+	extern	_scroll_bottom:wrt PGROUP
+	extern	_cursor_view:wrt PGROUP
+	extern	_cursor_x:wrt PGROUP
+	extern	_cursor_y:wrt PGROUP
+	extern	_clear_char:wrt PGROUP
+	extern	_clear_attr:wrt PGROUP
+	extern	_put_attr:wrt PGROUP
 ;	extern	_int29_handler
 	extern	reloc_call_int29_handler
 

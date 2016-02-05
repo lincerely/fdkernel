@@ -287,7 +287,7 @@ _spawn_int23:
 ;                ret
 ;_disable        endp
 
-        extern _p_0_tos,_P_0
+        extern _p_0_tos:wrt DGROUP,_P_0
 
 ; prepare to call process 0 (the shell) from P_0() in C
 

@@ -38,8 +38,7 @@ segment HMA_TEXT
 %ifdef NEC98
                 extern   _int29_main
                 extern   _intdc_main
-                extern   _in_processing_stopkey
-                extern   _nec98_stop_key_is_pressed
+                extern   _in_processing_stopkey:wrt PGROUP
                 extern   _nec98_flush_bios_keybuf
 %endif
                 extern   _error_tos:wrt DGROUP
