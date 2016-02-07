@@ -2169,6 +2169,7 @@ error_carry:
 #define CLEAR_ATTR		(*(UBYTE FAR *)MK_FP(0x0060, 0x0114))
 #define FUNCTION_FLAG	(*(UBYTE FAR *)MK_FP(0x0060, 0x0111))
 #define SCROLL_BOTTOM	(*(UBYTE FAR *)MK_FP(0x0060, 0x0112))
+#define CURSOR_VIEW	(*(UBYTE FAR *)MK_FP(0x0060, 0x011b))
 #define SAVE_CURSOR_X	(*(UBYTE FAR *)MK_FP(0x0060, 0x0127))
 #define SAVE_CURSOR_Y	(*(UBYTE FAR *)MK_FP(0x0060, 0x0126))
 #define SAVE_PUT_ATTR	(*(UBYTE FAR *)MK_FP(0x0060, 0x012b))
@@ -2491,6 +2492,7 @@ STATIC VOID parse_esc(UBYTE c)
 									redraw_function();
 									break;
 								case CHR2('>', '5'):	/* ESC[>5h カーソル非表示 */
+									CURSOR_VIEW = 1; /* for hiding actial cursor certainly */
 									hide_cursor();
 									break;
 								case CHR2('?', '5'):	/* ESC[?5h 拡張アトリビュートモード設定(ハイレゾ) */
@@ -2512,6 +2514,7 @@ STATIC VOID parse_esc(UBYTE c)
 									redraw_function();
 									break;
 								case CHR2('>', '5'):	/* ESC[>5l カーソル表示 */
+									CURSOR_VIEW = 0; /* for showing actual cursor certainly */
 									show_cursor();
 									break;
 								case CHR2('?', '5'):	/* ESC[?5l 標準アトリビュートモード設定 */
