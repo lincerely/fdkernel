@@ -60,6 +60,8 @@ unsigned char ctrl_break_pressed(void)
 unsigned char check_handle_break(struct dhdr FAR **pdev)
 {
   unsigned char c = CTL_C;
+  if (InDOS > 1)
+    return '\0';
   if (!ctrl_break_pressed())
     c = (unsigned char)ndread(&syscon);
   if (c != CTL_C && *pdev != syscon)
