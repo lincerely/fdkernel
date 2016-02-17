@@ -2182,6 +2182,7 @@ struct progkey {
 UBYTE int29_esc				= FALSE;
 UBYTE int29_esc_buf[128];
 UBYTE int29_esc_cnt			= 0;
+UBYTE int29_esc_equal		= FALSE;
 extern UBYTE ASM programmable_keys;
 extern struct progkey ASM programmable_key[];
 
@@ -2376,6 +2377,19 @@ STATIC int atoi(UBYTE *p)
 	return ret;
 }
 
+STATIC VOID set_curpos_clipped(UBYTE x, UBYTE y, UBYTE offset)
+{
+	UBYTE columns, rows;
+
+	columns = get_crt_width();
+	rows = get_crt_height();
+	x = (x >= offset) ? (x - offset) : 0;
+	y = (y >= offset) ? (y - offset) : 0;
+	if (x >= columns) x = columns - 1;
+	if (y >= rows) y = rows - 1;
+	set_curpos(x, y);
+}
+
 #if 1
 extern VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
 extern VOID FAR ASMCFUNC flush_conin(VOID);
@@ -2386,6 +2400,26 @@ STATIC VOID parse_esc(UBYTE c)
 	{
 		int29_esc_buf[int29_esc_cnt] = c;
 		int29_esc_cnt++;
+	}
+
+	if (int29_esc_equal)
+	{
+		if (int29_esc_cnt == 3)
+		{
+			UBYTE x, y;
+			y = int29_esc_buf[1];
+			x = int29_esc_buf[2];
+			set_curpos_clipped(x, y, 0x20);
+			int29_esc_cnt = 0;
+			int29_esc_equal = FALSE;
+			int29_esc = FALSE;
+		}
+		return;
+	}
+	else if (int29_esc_cnt == 1 && c == '=')
+	{
+		int29_esc_equal = TRUE;
+		return;
 	}
 
 	if(c >= 'a' &&  c <= 'z'
@@ -2476,8 +2510,6 @@ STATIC VOID parse_esc(UBYTE c)
 						}
 						break;
 #endif
-					case 'f':
-						break;
 
 					case 'h':
 						if(int29_esc_cnt == 4)
@@ -2701,6 +2733,7 @@ STATIC VOID parse_esc(UBYTE c)
 						}
 						break;
 
+					case 'f':
 					case 'H':
 						if(int29_esc_cnt >= 2)	/* ESC[<>;<>H カーソル<><>移動 */
 						{
@@ -2714,11 +2747,19 @@ STATIC VOID parse_esc(UBYTE c)
 							next_arg = parse_esc_arg(arg);
 							if(!next_arg)
 								break;
+# if 1
+							y = atoi(arg);
+							arg = next_arg;
+							parse_esc_arg(arg);
+							x = atoi(arg);
+							set_curpos_clipped(x, y, 1);
+# else
 							y = min(max(atoi(arg), 1), get_crt_height()) - 1;
 							arg = next_arg;
 							parse_esc_arg(arg);
 							x = min(max(atoi(arg), 1), get_crt_width()) - 1;
 							set_curpos(x, y);
+# endif
 						}
 						break;
 
@@ -3284,6 +3325,9 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					return;
 				case 0x03:		/* 直接コンソール出力(カーソル位置) */
 					{
+#if 1
+						set_curpos_clipped((r->DL + 0x20U)&0xff, (r->DH + 0x20U)&0xff, 0x20);
+#else
 						UBYTE x		= r->DL;
 						UBYTE max_x	= get_crt_width() - 1;
 						UBYTE y		= r->DH;
@@ -3297,6 +3341,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 						else if (y >= 0xe0)
 							y = 0;
 						set_curpos(x, y);
+#endif
 						return;
 					}
 				case 0x0a:  /* clear screen */
