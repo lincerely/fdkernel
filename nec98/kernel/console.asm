@@ -30,8 +30,6 @@
 
                 %include "io.inc"
 
-%define NEW_CONIN 1
-
 segment	_IO_FIXED_DATA
 
                 global  ConTable
@@ -65,63 +63,35 @@ seg_0060  dw 0060h
 %define CON_BUF_HEAD  0104h
 
 
-;
-; replacement function(s) of keyboard bios (int 18h ah=0/1/5)
-;
-
-;
-; peek (and remove) a key stroke from buffer
-; in:     cx = 0  peek a keystroke in the buffer
-;              1  peek a keystroke, and remove it if exist.
-; result: ax keystroke
-;         bh 0 = no keystroke, 1 = has a keystroke
-keybios_peekget_cx:
-    pushf
+; int 18h ah=1
+; check keyboard buffer WITHOUT BIOS call
+; note: Some FEPs (addtional CON driver) like ATOK will go wrong 
+;       by peeking a keystroke via BIOS call)
+keybios_peek:
+%if 1
     push si
     push ds
-    xor ax, ax
-    mov bh, al
-    mov ds, ax
-    cli
-    cmp al, byte [KB_COUNT]
-    je .exit
-    mov si, word [KB_BUF_HEAD]
-    or si, si                   ; (just for a proof)
+    xor si, si
+    mov ds, si
+    mov bh, byte [KB_COUNT]
+    add bh, 0ffh
+    sbb bh, bh
+    and bh, 1
     jz .exit
+    mov si, word [KB_BUF_HEAD]
     lodsw                       ; assume DF=0 (cld)
-    mov bh, 1
-    jcxz .exit
-    dec byte [KB_COUNT]
-    ;add si, 2
-    cmp si, KB_BUF_BOTTOM
-    jb .l2
-    mov si, KB_BUF_TOP
-  .l2:
-    mov word [KB_BUF_HEAD], si
   .exit:
-    ;sti
     pop ds
     pop si
-    popf
     ret
+%else
+    mov ah, 1
+    int 18h
+    ret
+%endif
 
-; int 18h ah=1
-keybios_peek:
-    push cx
-    xor cx, cx
-    call keybios_peekget_cx
-    pop cx
-    ret
-; int 18h ah=5
-keybios_peekget:
-    push cx
-    mov cx, 1
-    call keybios_peekget_cx
-    pop cx
-    ret
 ; to work some FEPs correctly, need real BIOS call...
 keybios_remove:
-keybios_get:
     mov ah, 0
     int 18h
     ret
@@ -138,7 +108,6 @@ peekget_from_conin_buf_sub:
     push si
     push ds
     mov ds, [cs: seg_0060]
-    cli
     mov si, word [CON_BUF_HEAD]
     or si, si
     jz .exit        ; zf=1 if no data (al = 0)
@@ -151,26 +120,9 @@ peekget_from_conin_buf_sub:
     sub byte [CON_BUF_COUNT], cl
     or al, al     ; zf=0 if data
   .exit:
-    sti
     pop ds
     pop si
     ret
-
-%if 0
-peekget_from_conin_buf:
-    push cx
-    mov cx, 1
-    call peekget_from_conin_buf_sub
-    pop cx
-    ret
-
-peek_from_conin_buf:
-    push cx
-    xor cx, cx
-    call peekget_from_conin_buf_sub
-    pop cx
-    ret
-%endif
 
 flush_conin_buf:
     push ds
@@ -234,7 +186,6 @@ copy_fkey_to_conbuf:
     mov ds, ax
     xor cx, cx
     mov di, 00c0h
-    cli
     mov byte [es: CON_BUF_COUNT], cl  ; buf len=0 (for a proof)
     mov word [es: CON_BUF_HEAD], di
   .lp:
@@ -261,33 +212,34 @@ ndwait_sub:
     push cx
     push dx
     push si
+    cli
     call peekget_from_conin_buf_sub
     jnz .exit                     ; ZF=0 if key(s) in conbuf
   .peekget_key:
     call keybios_peek
     or bh, bh
     jz .exit                      ; ZF=1 (no key in BIOS keybuf)
-    call check_fkey
-    jnz .convert_key
-    or cl, cl
-    jz .peekget_key2
-    sti
-    call keybios_get
-  .peekget_key2:
-    cmp ax, 1a00h                 ; ctrl-@
-    jne .peek_key2
-    or ah, ah                     ; ZF=0 (key code zero)
-    jmp short .exit
-  .peek_key2:
+    
+    cmp ax, 1a00h   ; ctrl-@
+    je .realkey
     or al, al
-    jnz .exit                     ; ZF=0 if keycode != 0
-    jmp short .converted_key
-  .convert_key:
+    jne .realkey
+    ; special keys
+    call keybios_remove
+    call check_fkey
+    jz .keyconv_exit
     call copy_fkey_to_conbuf
-  .converted_key:
-    call keybios_get
-    xor ax, ax                    ; just ZF=1 (no key..."key in conbuf" on the next call)
+  .keyconv_exit:
+    xor ax, ax    ; ZF=1
+    jmp short .exit
+
+  .realkey:
+    jcxz .realkey_2
+    call keybios_remove
+  .realkey_2:
+    or ax, ax     ; ZF=0
   .exit:
+    sti
     pop si
     pop dx
     pop cx
@@ -318,7 +270,6 @@ push_fkey:
     add si, si
     add si, si
     add si, _cnvkey_dest
-    cli
     mov di, 00c0h           ; use keybuf 0060:00c0
     mov byte [es: CON_BUF_COUNT], 0  ; buf len=0 (for a proof)
     mov word [es: CON_BUF_HEAD], di
@@ -334,7 +285,6 @@ push_fkey:
     jb .lp_cpybuf
   .l2:
     mov byte [es: CON_BUF_COUNT], cl
-    sti
 %if 1                        ; temporary fix
     or di, di               ; always zf=0
 %else
