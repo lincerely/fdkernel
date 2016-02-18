@@ -360,6 +360,8 @@ NulIntr:
                 retf
 
 
+                global NulIntr
+                global ConIntr
 ConIntr:
                 push    si
                 mov     si,ConTable

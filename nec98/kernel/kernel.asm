@@ -31,6 +31,7 @@
                 %include "segs.inc"
                 %include "ludivmul.inc"
 
+%define DUMMY_CON_IN_IOSYS  1
 
 segment PSP
 
@@ -209,6 +210,38 @@ _esc_seq_cursor_pos db  1bh, '[24;80R'  ; 012ch - 0133h scratchpad for esc[6n re
 
 
 ;               resb    256 - ($ - entry)
+
+%ifdef DUMMY_CON_IN_IOSYS
+; dummy con driver (workaround for some FEP driver(s) - yes, ATOK6 it is)
+; On genuine (NEC's and EPSON's) MS-DOSes, CON device is placed at:
+;   0060:2660  NEC MS-DOS 2.11
+;   0060:3400  MS-DOS 3.3, 5.0, 6.2 (and up to Win98SE)
+
+                ; anywhere at seg 60h ... temporary here
+                resb    2400h - ($ - entry)
+_dummy_con_dev  equ     $
+                dw      _dummy_prn_dev, seg _dummy_prn_dev
+                dw      8013h             ; chardev (stdin, stdout, int29h)
+                dw      _dummy_strategy
+                dw      _dummy_con_intr
+                db      'CON     '
+_dummy_prn_dev  equ     $
+                dw      0ffffh, 0ffffh
+                dw      8000h
+                dw      _dummy_strategy
+                dw      _dummy_prn_intr
+                db      'PRN     '
+
+_dummy_strategy:
+                extern GenStrategy
+                jmp far GenStrategy
+_dummy_con_intr:
+                extern ConIntr
+                jmp far ConIntr
+_dummy_prn_intr:
+                extern NulIntr
+                jmp far _nul_intr
+%endif
                 resb    2d00h - ($ - entry)
                 resb    100h            ; psp
                 resb    24              ; sizeof(iregs) (int 21h stack)
