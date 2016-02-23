@@ -1897,21 +1897,59 @@ STATIC BOOL LoadDevice(BYTE * pLine, char FAR *top, COUNT mode)
 #ifdef DEBUG
   printf("Loading device driver %s at segment %04x\n", szBuf, base);
 #endif
-
+#if defined(NEC98) && defined(JAPAN)
+  {
+/*
+  On Japanese MS-DOS for NEC PC-98 series (and EPSON compatibles),
+  'device=' statement is parsed as follows:
+    'device=a:\foo\bar.sys'            -> 'A:\FOO\BAR.SYS',0,LF
+    'device=a:\foo\bar.sys '           -> 'A:\FOO\BAR.SYS',0,LF
+    'device=a:\foo\bar.sys',HT         -> 'A:\FOO\BAR.SYS',0,CR,LF
+    'device=a:\foo\bar.sys  '          -> 'A:\FOO\BAR.SYS',0,' ',CR,LF
+    'device=a:\foo\bar.sys arg1 arg2'  -> 'A:\FOO\BAR.SYS',0,'ARG1 ARG2',CR,LF
+    'device=a:\foo\bar.sys  arg1 arg2' -> 'A:\FOO\BAR.SYS',0,' ARG1 ARG2',CR,LF
+    'device=a:\foo\bar.sys/arg1 arg2'  -> 'A:\FOO\BAR.SYS',0,'/ARG1 ARG2',CR,LF
+*/
+    extern BYTE ASM FAR switchar;
+    BYTE slash_is_switchar = ('/' == switchar);
+    char c;
+    char *s = pLine, *d = szBuf;
+    char *d2 = 0;
+    
+    s = skipwh(s);
+    while((c = *s) != '\0')
+    {
+      if (c == '/' && slash_is_switchar)
+        break;
+      if (iswh(c))
+        break;
+      *d++ = c;
+      s++;
+    }
+    *d = '\0';
+    if ((result = init_DosExec(3, &eb, szBuf)) != SUCCESS)
+    {
+      CfgFailure(pLine);
+      return result;
+    }
+    d2 = ++d;
+    while((c = *s) != '\0')
+    {
+      if (c == 13 || c == 10) break;
+      *d++ = c;
+      ++s;
+    }
+    strcpy(d, "\r\n\n");  /* CR,LF (and one more trailing LF on DOS5+) */
+    strupr(szBuf);
+    strupr(d2);
+  }
+#else
   if ((result = init_DosExec(3, &eb, szBuf)) != SUCCESS)
   {
     CfgFailure(pLine);
     return result;
   }
 
-#if defined(NEC98) || defined(JAPAN)
-/*
-  todo:
-  On Japanese MS-DOS, device name is terminated with a null '\0' char.
-  (eg. "C:\\FOO\\BAR\\DRIVER.SYS\0argv1 argv2 argv3\r\n")
-  And Some drivers depend on this feature, unfortunately...
-*/
-#endif
   strcpy(szBuf, pLine);
   /* uppercase the device driver command */
   strupr(szBuf);
@@ -1922,6 +1960,7 @@ STATIC BOOL LoadDevice(BYTE * pLine, char FAR *top, COUNT mode)
 
   /* add \r\n to the command line */
   strcat(szBuf, " \r\n");
+#endif
 
   dhp = MK_FP(base, 0);
 
