@@ -769,7 +769,7 @@ _cu_psp         dw      0               ; 10 - Current PSP
 break_sp        dw      0               ; 12 - used in int 23
 _return_code    dw      0               ; 14 - return code from process
 _default_drive  db      0               ; 16 - Current Drive
-_break_ena      db      1               ; 17 - Break Flag (default TRUE)
+_break_ena      db      0               ; 17 - Break Flag (default OFF)
                 db      0               ; 18 - flag, code page switching
                 db      0               ; 19 - flag, copy of 18 on int 24h abort
 
