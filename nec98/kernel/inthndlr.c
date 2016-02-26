@@ -2390,6 +2390,43 @@ STATIC VOID set_curpos_clipped(UBYTE x, UBYTE y, UBYTE offset)
 	set_curpos(x, y);
 }
 
+STATIC VOID clear_screen_escj(UBYTE typ, UBYTE cpos_x, UBYTE cpos_y)
+{
+  UBYTE columns = get_crt_width();
+  UBYTE rows = get_crt_height();
+  UBYTE x, y;
+  switch(typ)
+  {
+    /* ESC[0J Clear screen from cursor position to the bottom right corner */
+    case 0:
+      for(x = cpos_x; x < columns; ++x)
+        clear_crt(x, cpos_y);
+      for(y = cpos_y + 1; y < rows; ++y)
+        for(x = 0; x < columns; ++x)
+          clear_crt(x, y);
+      break;
+    
+    /* ESC[1J Clear screen from upper left corner to cursor position */
+    case 1:
+      for(y = 0; y < cpos_y; ++y)
+        for(x = 0; x < columns; ++x)
+          clear_crt(x, y);
+      for(x = 0; x <= cpos_x; ++x)
+        clear_crt(x, cpos_y);
+      break;
+    
+    /* ESC[2J Clear the screen, and move cursor to the HOME position */ 
+    case 2:
+      clear_crt_all();
+      set_curpos(0, 0);
+      break;
+    
+    default:
+      return;
+  }
+  redraw_function();
+}
+
 #if 1
 extern VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
 extern VOID FAR ASMCFUNC flush_conin(VOID);
@@ -2469,9 +2506,7 @@ STATIC VOID parse_esc(UBYTE c)
 			case '*':
 				if(int29_esc_cnt == 1)	/* ESC* 画面消去&カーソルをホームへ */
 				{
-					clear_crt_all();
-					redraw_function();
-					set_curpos(0, 0);
+					clear_screen_escj(2, 0, 0);
 				}
 				break;
 
@@ -2773,39 +2808,7 @@ STATIC VOID parse_esc(UBYTE c)
 						}
 						if(int29_esc_cnt == 3)
 						{
-							switch(int29_esc_buf[1])
-							{
-								case '0':	/* ESC[0J カーソル位置から下右までクリア */
-									{
-										UBYTE x;
-										UBYTE y			= CURSOR_Y;
-										UBYTE width		= get_crt_width();
-										UBYTE height	= get_crt_height();
-										for(x = CURSOR_X; x < width; x++)
-											clear_crt(x, y);
-										for(y++; y < height; y++)
-											for(x = 0; x < width; x++)
-												clear_crt(x, y);
-									}
-									break;
-								case '1':	/* ESC[1J 上右からカーソル位置までクリア */
-									{
-										BYTE x;
-										BYTE y		= CURSOR_Y;
-										UBYTE width	= get_crt_width();
-										for(x = CURSOR_X; x >= 0; x--)
-											clear_crt(x, y);
-										for(y--; y >= 0; y--)
-											for(x = 0; x < width; x++)
-												clear_crt(x, y);
-									}
-									break;
-								case '2':	/* ESC[2J 画面消去&カーソルをホームへ */
-									clear_crt_all();
-									redraw_function();
-									set_curpos(0, 0);
-									break;
-							}
+							clear_screen_escj(int29_esc_buf[1] - '0', CURSOR_X, CURSOR_Y);
 						}
 						break;
 
@@ -3111,9 +3114,7 @@ VOID ASMCFUNC int29_main(UBYTE c)
 
     case 0x1a:  /* Clear Screen */
       int29_esc = FALSE;
-      clear_crt_all();
-      redraw_function();
-      set_curpos(0, 0);
+      clear_screen_escj(2, 0, 0);
       break;
     
     case 0x1e:  /* HOME */
@@ -3357,7 +3358,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 						return;
 					}
 				case 0x0a:  /* clear screen */
-					/* just a dummy, for now */
+					clear_screen_escj(r->DL, CURSOR_X, CURSOR_Y);
 					return;
 				case 0x0e:  /* set console mode (kanji/graph) */
 					/* just a dummy, for now */
