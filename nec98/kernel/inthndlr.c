@@ -2830,6 +2830,16 @@ STATIC VOID parse_esc(UBYTE c)
 									break;
 							}
 						}
+# if 0
+						else if(int29_esc_cnt == 4)
+						{
+							switch(*(UWORD *)&int29_esc_buf[1])
+							{
+								case CHR2('>', '3'):	/* ESC[>3n 31 lines mode (Hi-res) */
+									break;
+							}
+						}
+# endif
 						break;
 #endif
 
