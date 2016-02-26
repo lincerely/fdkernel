@@ -2542,6 +2542,8 @@ STATIC VOID parse_esc(UBYTE c)
 									show_function();
 									break;
 								case CHR2('>', '3'):	/* ESC[>3l 25çsÉÇÅ[Éhê›íË */
+									/* init scroll region (for some EPSON's tools) */
+									SCROLL_BOTTOM = (FUNCTION_FLAG == 0) ? 24 : 23;
 									clear_crt_all();
 									redraw_function();
 									break;
