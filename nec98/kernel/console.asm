@@ -395,6 +395,8 @@ CRT_STS_FLAG	equ	053ch
 	extern	_clear_char:wrt PGROUP
 	extern	_clear_attr:wrt PGROUP
 	extern	_put_attr:wrt PGROUP
+	extern	_scroll_bottom:wrt PGROUP
+	extern	_crt_line:wrt PGROUP
 ;	extern	_int29_handler
 	extern	reloc_call_int29_handler
 
@@ -439,6 +441,13 @@ init_crt:
 		div	dl
 		mov	[_cursor_y], al
 		mov	[_cursor_x], ah
+		mov	ah, 0bh
+		int	18h
+		test	al, 1
+		jz	.l2
+		mov	byte [_scroll_bottom], 20 - 1
+		mov	byte [_crt_line], 0
+	.l2:
 
 		mov	bx, .init_str
 	.loop3:
@@ -456,6 +465,24 @@ init_crt:
 .init_str	db	1bh, '[>1l', 0
 
 segment HMA_TEXT
+
+; UBYTE ASMCFUNC crt_set_mode(UBYTE mode)
+		global	_crt_set_mode
+_crt_set_mode:
+		push bp
+		mov bp, sp
+		mov ah, 0bh
+		int 18h
+		xor ah, ah
+		push ax
+		mov ah, 0ah
+		mov al, byte [bp + 4]
+		int 18h
+		mov ah, 0ch
+		int 18h
+		pop ax
+		pop bp
+		ret
 
 ; VOID ASMCFUNC set_curpos(UBYTE x, UBYTE y)
 		global	_set_curpos

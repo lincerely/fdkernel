@@ -2427,6 +2427,19 @@ STATIC VOID clear_screen_escj(UBYTE typ, UBYTE cpos_x, UBYTE cpos_y)
   redraw_function();
 }
 
+STATIC VOID set_crt_lines(UBYTE is_25line)
+{
+  UBYTE new_rows = is_25line ? 24 : 19;
+  
+  set_curpos(0, 0);
+  crt_set_mode(is_25line ? 0 : 1);
+  *(UBYTE FAR *)MK_FP(0x60, 0x113) = !!is_25line;
+  if (FUNCTION_FLAG) --new_rows;
+  SCROLL_BOTTOM = new_rows;
+  clear_crt_all();
+  redraw_function();
+}
+
 #if 1
 extern VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
 extern VOID FAR ASMCFUNC flush_conin(VOID);
@@ -2555,8 +2568,7 @@ STATIC VOID parse_esc(UBYTE c)
 									hide_function();
 									break;
 								case CHR2('>', '3'):	/* ESC[>3h 20行モード設定 */
-									clear_crt_all();
-									redraw_function();
+									set_crt_lines(FALSE);
 									break;
 								case CHR2('>', '5'):	/* ESC[>5h カーソル非表示 */
 									CURSOR_VIEW = 1; /* for hiding actial cursor certainly */
@@ -2577,10 +2589,7 @@ STATIC VOID parse_esc(UBYTE c)
 									show_function();
 									break;
 								case CHR2('>', '3'):	/* ESC[>3l 25行モード設定 */
-									/* init scroll region (for some EPSON's tools) */
-									SCROLL_BOTTOM = (FUNCTION_FLAG == 0) ? 24 : 23;
-									clear_crt_all();
-									redraw_function();
+									set_crt_lines(TRUE);
 									break;
 								case CHR2('>', '5'):	/* ESC[>5l カーソル表示 */
 									CURSOR_VIEW = 0; /* for showing actual cursor certainly */

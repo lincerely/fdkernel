@@ -394,6 +394,7 @@ VOID ASMCFUNC exec_user(iregs FAR * irp, int disable_a20);
 
 #if defined(NEC98)
 /* console.asm */
+UBYTE ASMCFUNC crt_set_mode(UBYTE mode);
 VOID ASMCFUNC set_curpos(UBYTE x, UBYTE y);
 VOID ASMCFUNC crt_scroll_up(VOID);
 VOID ASMCFUNC crt_scroll_down(VOID);
