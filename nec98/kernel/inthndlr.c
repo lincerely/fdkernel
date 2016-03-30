@@ -2791,22 +2791,16 @@ STATIC VOID parse_esc(UBYTE c)
 
 							int29_esc_buf[int29_esc_cnt - 1] = '\0';
 							arg = &int29_esc_buf[1];
+							if (int29_esc_cnt == 2)
+								set_curpos(0, 0);
 							next_arg = parse_esc_arg(arg);
 							if(!next_arg)
 								break;
-# if 1
 							y = atoi(arg);
 							arg = next_arg;
 							parse_esc_arg(arg);
 							x = atoi(arg);
 							set_curpos_clipped(x, y, 1);
-# else
-							y = min(max(atoi(arg), 1), get_crt_height()) - 1;
-							arg = next_arg;
-							parse_esc_arg(arg);
-							x = min(max(atoi(arg), 1), get_crt_width()) - 1;
-							set_curpos(x, y);
-# endif
 						}
 						break;
 
