@@ -404,8 +404,7 @@ VOID ASMCFUNC put_crt(UBYTE x, UBYTE y, UWORD c);
 VOID ASMCFUNC put_crt_wattr(UBYTE x, UBYTE y, UWORD c, UBYTE a);
 VOID ASMCFUNC clear_crt(UBYTE x, UBYTE y);
 VOID ASMCFUNC clear_crt_all(VOID);
-VOID ASMCFUNC show_cursor(VOID);
-VOID ASMCFUNC hide_cursor(VOID);
+VOID ASMCFUNC update_cursor_view(VOID);
 #endif
 
 /* new by TE */

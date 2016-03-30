@@ -2438,6 +2438,7 @@ STATIC VOID set_crt_lines(UBYTE is_25line)
   SCROLL_BOTTOM = new_rows;
   clear_crt_all();
   redraw_function();
+  update_cursor_view();
 }
 
 #if 1
@@ -2571,8 +2572,8 @@ STATIC VOID parse_esc(UBYTE c)
 									set_crt_lines(FALSE);
 									break;
 								case CHR2('>', '5'):	/* ESC[>5h カーソル非表示 */
-									CURSOR_VIEW = 1; /* for hiding actial cursor certainly */
-									hide_cursor();
+									CURSOR_VIEW = 0;
+									update_cursor_view();
 									break;
 								case CHR2('?', '5'):	/* ESC[?5h 拡張アトリビュートモード設定(ハイレゾ) */
 									break;
@@ -2592,8 +2593,8 @@ STATIC VOID parse_esc(UBYTE c)
 									set_crt_lines(TRUE);
 									break;
 								case CHR2('>', '5'):	/* ESC[>5l カーソル表示 */
-									CURSOR_VIEW = 0; /* for showing actual cursor certainly */
-									show_cursor();
+									CURSOR_VIEW = 1;
+									update_cursor_view();
 									break;
 								case CHR2('?', '5'):	/* ESC[?5l 標準アトリビュートモード設定 */
 									break;

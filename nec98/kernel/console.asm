@@ -492,31 +492,41 @@ _set_curpos:
 		push	ds
 		mov	ax, 60h
 		mov	ds, ax
-
-		xor	ah, ah
-		mov	al, [bp + 6]	; y
-		mov	byte [_cursor_y], al
-		mov	dl, 80
-		mul	dl
-		xor	dh, dh
-		mov	dl, [bp + 4]	; x
-		mov	byte [_cursor_x], dl
-		add	dx, ax
-		shl	dx, 1
-		mov	ah, 13h
-		int	18h
-
-%if 1
-    mov ah, 12h
-    cmp byte [_cursor_view], 0
-    je .upd_csr_view
-    mov ah, 11h
-  .upd_csr_view:
-    int 18h
-%endif
-
+		mov	al, [bp + 4]
+		mov	[_cursor_x], al
+		mov	al, [bp + 6]
+		mov	[_cursor_y], al
+		call	update_curpos
 		pop	ds
 		pop	bp
+		ret
+
+; internal function (assume DS=60h)
+update_curpos:
+    mov al, 80
+    mul byte [_cursor_y]
+    add al, [_cursor_x]
+    adc ah, 0
+    add ax, ax
+    mov dx, ax
+    mov ah, 13h
+    int 18h
+    ret
+
+; VOID ASMCFUNC update_cursor_view(VOID)
+		global	_update_cursor_view
+_update_cursor_view:
+		push ds
+		mov ax, 60h
+		mov ds, ax
+		mov ah, 12h
+		cmp byte [_cursor_view], 0
+		je .int18_and_exit
+		call update_curpos
+		mov ah, 11h
+  .int18_and_exit:
+		int 18h
+		pop ds
 		ret
 
 
@@ -746,35 +756,6 @@ _clear_crt_all:
 		pop	di
 		ret
 
-; VOID ASMCFUNC show_cursor(VOID)
-		global	_show_cursor
-_show_cursor:
-		push	ds
-		mov	ax, 60h
-		mov	ds, ax
-		cmp	byte [_cursor_view], 0
-		jne	.end
-		mov	ah, 11h
-		int	18h
-		mov	byte [_cursor_view], 1
-	.end:
-		pop	ds
-		ret
-
-; VOID ASMCFUNC hide_cursor(VOID)
-		global	_hide_cursor
-_hide_cursor:
-		push	ds
-		mov	ax, 60h
-		mov	ds, ax
-		cmp	byte [_cursor_view], 0
-		je	.end
-		mov	ah, 12h
-		int	18h
-		mov	byte [_cursor_view], 0
-	.end:
-		pop	ds
-		ret
 
 segment	_DATA
 
