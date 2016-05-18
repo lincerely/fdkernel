@@ -33,5 +33,7 @@ config.mak
 kernel/KERNEL.SYS
 kernel/*.sys
 kernel/*.rsp
+bin/COMMAND.COM
+bin/command.com
 bin/K*.sys
 bin/k*.sys

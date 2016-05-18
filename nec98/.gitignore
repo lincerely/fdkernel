@@ -33,6 +33,8 @@ config.mak
 kernel/KERNEL.SYS
 kernel/*.sys
 kernel/*.rsp
+bin/COMMAND.COM
+bin/command.com
+bin/country.sys
 bin/K*.sys
 bin/k*.sys
-bin/country.sys
