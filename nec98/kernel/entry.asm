@@ -31,6 +31,8 @@
                 %include "segs.inc"
                 %include "stacks.inc"
 
+%define USE_PRIVATE_INT29_STACK 1
+
 segment HMA_TEXT
                 extern   _int21_syscall
                 extern   _int21_service
@@ -587,7 +589,31 @@ int2526:
 ;       VOID INRPT far
 ;       int29_handler(iregs UserRegs)
 ;
+
+%ifdef USE_PRIVATE_INT29_STACK
+                extern int29_stack_bottom:wrt PSP
+                global int29_stack_org      ; just for debugging
+                global int29_stack_count    ; ditto
+
+                align 2
+int29_stack_org:
+                dd 0
+int29_stack_count:
+                db 0
+%endif
+
 reloc_call_int29_handler:
+%ifdef USE_PRIVATE_INT29_STACK
+                cli
+                sub byte [cs: int29_stack_count], 1
+                jnc .stk_set
+                mov word [cs: int29_stack_org], sp
+                mov word [cs: int29_stack_org + 2], ss
+                mov sp, PSP ; 0060h
+                mov ss, sp
+                mov sp, int29_stack_bottom
+    .stk_set:
+%endif
                 sti
                 PUSH$ALL
                 Protect386Registers
@@ -599,6 +625,15 @@ reloc_call_int29_handler:
                 pop ax
                 Restore386Registers
                 POP$ALL
+%ifdef USE_PRIVATE_INT29_STACK
+                add byte [cs: int29_stack_count], 1
+                jnc .re_stk
+                cli
+                mov sp, word [cs: int29_stack_org]
+                mov ss, word [cs: int29_stack_org + 2]
+                sti
+    .re_stk:
+%endif
                 iret
 
 ;

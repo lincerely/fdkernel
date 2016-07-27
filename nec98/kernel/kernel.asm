@@ -241,7 +241,16 @@ _dummy_con_intr:
 _dummy_prn_intr:
                 extern NulIntr
                 jmp far _nul_intr
+%endif ; DUMMY_CON_IN_IOSYS
+
+%if 1  ; USE_PRIVATE_INT29_STACK (see entry.asm)
+                ; private stack for int29
+                global int29_stack_bottom
+                align 2
+                times 16 db 'Stack for int29.'          ; 16x16 = 256bytes
+int29_stack_bottom:
 %endif
+
                 resb    2d00h - ($ - entry)
                 resb    100h            ; psp
                 resb    24              ; sizeof(iregs) (int 21h stack)
