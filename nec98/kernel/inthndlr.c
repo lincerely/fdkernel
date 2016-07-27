@@ -2183,6 +2183,7 @@ UBYTE int29_esc				= FALSE;
 UBYTE int29_esc_buf[128];
 UBYTE int29_esc_cnt			= 0;
 UBYTE int29_esc_equal		= FALSE;
+UBYTE int29_esc_graph		= FALSE;
 extern UBYTE ASM programmable_keys;
 extern struct progkey ASM programmable_key[];
 
@@ -2280,6 +2281,7 @@ STATIC VOID put_funcs(void)
 
 	for(x = 0; x < 4; x++)
 		clear_crt(x, y);
+	put_crt_wattr(1, y, peekb(0x60, 0x8b), CLEAR_ATTR);
 	for(i = 1; i <= 5; i++)
 	{
 		put_func(x, y, programmable_key[i].table);
@@ -2441,6 +2443,18 @@ STATIC VOID set_crt_lines(UBYTE is_25line)
   update_cursor_view();
 }
 
+STATIC VOID set_graph_state(UBYTE mode_number)
+{
+  if (mode_number == 0) {
+    pokew(0x60, 0x8a, 0x2001);		/* kanji mode */
+    redraw_function();
+  }
+  else if (mode_number == 3) {
+    pokew(0x60, 0x8a, 0x6700);     /* graph mode */
+    redraw_function();
+  }
+}
+
 #if 1
 extern VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
 extern VOID FAR ASMCFUNC flush_conin(VOID);
@@ -2470,6 +2484,21 @@ STATIC VOID parse_esc(UBYTE c)
 	else if (int29_esc_cnt == 1 && c == '=')
 	{
 		int29_esc_equal = TRUE;
+		return;
+	}
+	if (int29_esc_graph)
+	{
+		if (int29_esc_cnt == 2)
+		{
+			set_graph_state(int29_esc_buf[1] - '0');
+			int29_esc_cnt = 0;
+			int29_esc_graph = FALSE;
+			int29_esc = FALSE;
+		}
+	}
+	else if (int29_esc_cnt == 1 && c == ')')
+	{
+		int29_esc_graph = TRUE;
 		return;
 	}
 
@@ -2524,6 +2553,7 @@ STATIC VOID parse_esc(UBYTE c)
 				}
 				break;
 
+#if 0
 			case ')':
 				if(int29_esc_cnt == 2)
 				{
@@ -2536,6 +2566,7 @@ STATIC VOID parse_esc(UBYTE c)
 					}
 				}
 				break;
+#endif
 
 			case '[':
 				switch(c)
@@ -3133,7 +3164,7 @@ VOID ASMCFUNC int29_main(UBYTE c)
 				break;
 			}
 
-			if(iskanji(c))
+			if(peekb(0x60, 0x8a) && iskanji(c))
 			{
 				KANJI1_CODE = c;
 				KANJI2_WAIT = 1;
@@ -3365,7 +3396,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					clear_screen_escj(r->DL, CURSOR_X, CURSOR_Y);
 					return;
 				case 0x0e:  /* set console mode (kanji/graph) */
-					/* just a dummy, for now */
+					set_graph_state(r->DL);
 					return;
 			}
 			break;
