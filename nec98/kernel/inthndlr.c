@@ -2495,6 +2495,7 @@ STATIC VOID parse_esc(UBYTE c)
 			int29_esc_graph = FALSE;
 			int29_esc = FALSE;
 		}
+		return;
 	}
 	else if (int29_esc_cnt == 1 && c == ')')
 	{
