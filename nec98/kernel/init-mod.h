@@ -220,6 +220,7 @@ VOID ASMCFUNC FAR int2a_handler(void);
 VOID ASMCFUNC FAR int2f_handler(void);
 #if defined(NEC98)
 VOID ASMCFUNC FAR intdc_handler(void);
+VOID ASMCFUNC FAR unhandled_int_handler_iosys(void);
 #endif
 VOID ASMCFUNC FAR cpm_entry(void);
 

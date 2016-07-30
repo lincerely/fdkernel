@@ -250,6 +250,11 @@ _dummy_prn_intr:
                 times 16 db 'Stack for int29.'          ; 16x16 = 256bytes
 int29_stack_bottom:
 %endif
+%if 1  ; UNHANDLED_INT_HANDLER_IN_IOSYS
+                global _unhandled_int_handler_iosys
+_unhandled_int_handler_iosys:
+                jmp far _unhandled_int_handler
+%endif
 
                 resb    2d00h - ($ - entry)
                 resb    100h            ; psp
@@ -1205,6 +1210,12 @@ _int29_handler: jmp 0:reloc_call_int29_handler
                 extern  reloc_call_intdc_handler
 _intdc_handler: jmp 0:reloc_call_intdc_handler
                 call near forceEnableA20
+ %if 1
+                global  _unhandled_int_handler
+                extern  reloc_call_unhandled_int_handler
+_unhandled_int_handler: jmp 0:reloc_call_unhandled_int_handler
+                call near forceEnableA20
+ %endif
 %endif ; NEC98
 
    global __HMARelocationTableEnd

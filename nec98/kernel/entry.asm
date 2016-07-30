@@ -69,6 +69,7 @@ segment HMA_TEXT
 %ifdef NEC98
                 global  reloc_call_int29_handler
                 global  reloc_call_intdc_handler
+                global  reloc_call_unhandled_int_handler
 %endif
 
 ;
@@ -159,6 +160,47 @@ hex_loop:
                 sub     cl, 4
                 jae     hex_loop
                 ret
+
+%ifdef NEC98
+print_hex8:     mov cl, 4
+                jmp short hex_loop
+
+print_str:      mov al, [cs: si]
+                test al, al
+                jz .ret
+                int 29h
+                inc si
+                jmp short print_str
+.ret:
+                ret
+
+unhandled_int_message1:
+                db 0dh,0ah
+                db 'PANIC - Unhandled INT ', 0
+unhandled_int_messagev:
+                db '??'
+unhandled_int_message2:
+                db 'h. Stack:', 0dh, 0ah, 0
+
+reloc_call_unhandled_int_handler:
+                mov si, unhandled_int_message1
+                call print_str
+                push bp
+                mov bp, sp
+                push ds
+                lds si, [bp + 2]
+                mov dx, [si - 2]
+                pop ds
+                pop bp
+                mov si, unhandled_int_messagev
+                cmp dl, 0cdh		; int xxh?
+                jne .l2
+                xchg dl, dh
+                call print_hex8
+                mov si, unhandled_int_message2
+.l2:
+                jmp short zero_message_loop
+%endif
 
 divide_by_zero_message db 0dh,0ah,'Interrupt divide by zero, stack:',0dh,0ah,0
 

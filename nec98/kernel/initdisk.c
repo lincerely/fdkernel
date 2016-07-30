@@ -1994,6 +1994,8 @@ void ReadAllPartitionTables(void)
   COUNT nFloppyRest;
   BootDaua = peekb(0, 0x584); /* DISK_BOOT */
   BootPartIndex = peekw(0x0, 0x3fe); /* fetch boot partition from BOOTPART_SCRATCHPAD (see boot.asm) */
+  pokew(0, 0x3fc, FP_OFF(unhandled_int_handler_iosys));
+  pokew(0, 0x3fe, FP_SEG(unhandled_int_handler_iosys));
   if ((BootPartIndex & 0xff00) == 0x100)  /* boot from HD with 256bytes/sector */
     BootPartIndex = (BootPartIndex & 0xff) / 32;
   else                                /* or (probably) 512bytes/sector */
