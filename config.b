@@ -19,21 +19,24 @@
 :-**********************************************************************
 :-- define NASM executable - remember - it should not be protected
 :-  mode DJGPP version if you're using Windows NT/2k/XP to compile
-:-  also: DJGPP-nasm crashes when using protected mode Borland's make
+:-  because DJGPP-nasm crashes when using protected mode Borland's
+:-  make under Windows NT/2k/XP
 :-**********************************************************************
 
-set XNASM=c:\bin\nasm16
+set XNASM=nasm
 
 :**********************************************************************
 :- define your COMPILER type here, pick one of them
 :**********************************************************************
 
 :- Turbo C 2.01
-set COMPILER=TC2
+:- set COMPILER=TC2
 :- Turbo C++ 1.01
 :- set COMPILER=TURBOCPP
 :- Turbo C 3.0
 :- set COMPILER=TC3
+:- Borland C 3.1
+set COMPILER=BC3
 :- Borland C
 :- set COMPILER=BC5
 :- Microsoft C
@@ -45,9 +48,10 @@ set COMPILER=TC2
 :-- where is the BASE dir of your compiler(s) ??
 :-**********************************************************************
 						
-set TC2_BASE=c:\tc201
+:- set TC2_BASE=c:\tc201
 :- set TP1_BASE=c:\tcpp
 :- set TC3_BASE=c:\tc3
+set BC3_BASE=c:\bc
 :- set BC5_BASE=c:\bc5
 :- set MS_BASE=c:\msvc
 
