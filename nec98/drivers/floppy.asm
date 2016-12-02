@@ -34,6 +34,19 @@ segment HMA_TEXT
 
 
 
+%ifdef NEC98
+; WORD ASMPASCAL fl_sense(WORD drive);
+		global	FL_SENSE
+FL_SENSE:
+		pop	dx		; return address
+		pop	ax		; DA/UA (AL only)
+		push	dx		; restore address
+		mov	ah, 04h
+		int	1bh
+		xchg	al,ah		; result = AL
+		sbb	ah,ah		; ah = non zero if error
+		ret
+%endif
 ;
 ; BOOL ASMPASCAL fl_reset(WORD drive);
 ;

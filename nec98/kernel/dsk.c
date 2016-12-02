@@ -68,6 +68,8 @@ UWORD ASMPASCAL floppy_change(UWORD);
 #pragma aux (pascal) fl_readkey modify exact [ax]
 #pragma aux (pascal) fl_lba_ReadWrite modify exact [ax]
 #pragma aux (pascal) floppy_change modify exact [ax]
+WORD ASMPASCAL fl_sense(WORD);
+#pragma aux (pascal) fl_sense modify exact [ax dx]
 # else
 /* IBMPC */
 #pragma aux (pascal) fl_reset modify exact [ax dx]
@@ -127,6 +129,7 @@ STATIC VOID tmark(ddt *pddt)
 #endif
 }
 
+#if defined(IBMPC)
 STATIC BOOL tdelay(ddt *pddt, ULONG ticks)
 {
 #if defined(NEC98)
@@ -138,6 +141,7 @@ STATIC BOOL tdelay(ddt *pddt, ULONG ticks)
   return ReadPCClock() - pddt->ddt_fh.ddt_lasttime >= ticks;
 #endif
 }
+#endif
 
 #if !defined(IBMPC) || defined(NEC98)
 /* todo: HD partitions */
@@ -209,6 +213,8 @@ static dsk_proc * const dispatch[NENTRY] =
 # define is_daua_scsi(d)  (((d) & 0x78) == 0x20)
 # define is_daua_fd(d)  (((d) & 0x1c) == 0x10)
 # define is_daua_2hd(d) (((d) & 0xfc) == 0x90)
+# define is_daua_144(d) (((d) & 0xfc) == 0x30)
+# define is_daua_2hd144(d) (is_daua_2hd(d) || is_daua_144(d))
 # define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
 
 STATIC bpb nec98_bpb_1440 = { 512, 1, 1, 2, 0xe0, 2*18*80, 0xf0, 18, 8, 2, 0, 0 };
@@ -313,11 +319,21 @@ STATIC WORD diskchange(ddt * pddt)
 
   /* can not detect or error... */
 #if defined(NEC98)
-  /* todo... */
-  if (is_daua_fd(pddt->ddt_driveno))
-    return M_DONT_KNOW;
+  if (is_daua_hd(pddt->ddt_driveno))
+    return M_NOT_CHANGED;
+
+  if (is_daua_2hd144(pddt->ddt_driveno)) {
+    BYTE ua = pddt->ddt_driveno & 0x0f;
+    if (ua < 4)
+    {
+      BYTE st0 = peekb(0, 0x564 + (ua << 3));
+      WORD sense = fl_sense(pddt->ddt_driveno);
+      if ((sense & 0xffe0U) == 0 && st0 < 0xc0U /* 0x40U */)
+        return M_NOT_CHANGED;
+    }
+  }
   
-  return tdelay(pddt, 37ul) ? M_NOT_CHANGED : M_NOT_CHANGED;
+  return M_DONT_KNOW;
 #else
   return tdelay(pddt, 37ul) ? M_DONT_KNOW : M_NOT_CHANGED;
 #endif
