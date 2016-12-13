@@ -214,7 +214,7 @@ static dsk_proc * const dispatch[NENTRY] =
 # define is_daua_fd(d)  (((d) & 0x1c) == 0x10)
 # define is_daua_2hd(d) (((d) & 0xfc) == 0x90)
 # define is_daua_144(d) (((d) & 0xfc) == 0x30)
-# define is_daua_2hd144(d) (is_daua_2hd(d) || is_daua_144(d))
+# define is_daua_IF1M(d) ((((d) & 0x7c) == 0x10) || is_daua_144(d))
 # define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
 
 STATIC bpb nec98_bpb_1440 = { 512, 1, 1, 2, 0xe0, 2*18*80, 0xf0, 18, 8, 2, 0, 0 };
@@ -322,7 +322,7 @@ STATIC WORD diskchange(ddt * pddt)
   if (is_daua_hd(pddt->ddt_driveno))
     return M_NOT_CHANGED;
 
-  if (is_daua_2hd144(pddt->ddt_driveno)) {
+  if (is_daua_IF1M(pddt->ddt_driveno)) {
     BYTE ua = pddt->ddt_driveno & 0x0f;
     if (ua < 4)
     {
