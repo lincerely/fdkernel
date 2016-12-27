@@ -531,6 +531,37 @@ STATIC VOID update_dcb(struct dhdr FAR * dhp)
 
 /* If cmdLine is NULL, this is an internal driver */
 
+#define GUARD_MEMORY_ON_INIT
+#define GUARD_ID 0xfffdU
+
+#if defined(GUARD_MEMORY_ON_INIT)
+STATIC VOID guard_mcb(UWORD old_psp, UWORD new_psp)
+{
+  UWORD mcbseg = LoL->first_mcb;
+  UWORD umblink = LoL->uppermem_link != 0;
+  iregs r;
+
+  r.a.x = 0x5803;
+  r.b.x = 1;
+  init_call_intr(0x21, &r);
+  for (;;)
+  {
+    mcb FAR *pmcb = MK_FP(mcbseg, 0);
+    BYTE mz = pmcb->m_type;
+    if (mz != 'M' && mz != 'Z')
+      break;
+    if (pmcb->m_psp == old_psp)
+      pmcb->m_psp = new_psp;
+    if (mz == 'Z')
+      break;
+    mcbseg += pmcb->m_size + 1U;
+  }
+  r.a.x = 0x5803;
+  r.b.x = umblink;
+  init_call_intr(0x21, &r);
+}
+#endif
+
 BOOL init_device(struct dhdr FAR * dhp, char *cmdLine, COUNT mode,
                  char FAR **r_top)
 {
@@ -568,7 +599,13 @@ BOOL init_device(struct dhdr FAR * dhp, char *cmdLine, COUNT mode,
   rq.r_bpbptr = (void FAR *)(cmdLine ? cmdLine : "\n");
   rq.r_firstunit = LoL->nblkdev;
 
+#if defined(GUARD_MEMORY_ON_INIT)
+  guard_mcb(0, GUARD_ID);
+#endif
   execrh((request FAR *) & rq, dhp);
+#if defined(GUARD_MEMORY_ON_INIT)
+  guard_mcb(GUARD_ID, 0);
+#endif
 
 /*
  *  Added needed Error handle
