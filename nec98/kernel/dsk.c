@@ -654,6 +654,10 @@ STATIC WORD getbpb(ddt * pddt)
   /* check extended boot record */
   if (DiskTransferBuffer[0x26] != 0x29)
   {
+    UBYTE b0, b1, b2;
+    b0 = DiskTransferBuffer[0];
+    b1 = DiskTransferBuffer[1];
+    b2 = DiskTransferBuffer[2];
     /* non-extended boot record */
     pbpbarray->bpb_huge = 0;
 #if defined(NEC98)
@@ -661,7 +665,7 @@ STATIC WORD getbpb(ddt * pddt)
     if (pbpbarray->bpb_mdesc == 0xf8)
     {
       /* todo */
-      if (DiskTransferBuffer[0] == 0xe9 && DiskTransferBuffer[1] == 0x1f && DiskTransferBuffer[2] == 0x90)
+      if (b0 == 0xe9 && b1 == 0x1f && b2 == 0x90)
       {
         /* DOS 3.x HD (SASI/IDE) PBR, maybe */
         pbpbarray->bpb_nsecs = 0;
@@ -674,6 +678,12 @@ STATIC WORD getbpb(ddt * pddt)
     else
     {
       /* DOS 3.x (or below) FD : partly usable */
+      if (b0 == b1 && b1 == b2 /* && (b0 == 0xff || b0 == 0xf6 || b0 == 0xe5) */)
+      {
+        /* guess "blank" (formatted physically but not installed fat) */
+        tmark(pddt);
+        return failure(E_MEDIA);
+      }
       memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], 0x1c - 0x0b);
     }
 #else
