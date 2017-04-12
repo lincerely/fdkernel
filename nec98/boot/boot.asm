@@ -113,9 +113,37 @@ real_start:
 ;		int	18h
 
 		cld
+		cli
+%ifdef ISFAT16
+; 3800:0000 IPL
+;(3800:0400) limit of local stack
+;(3800:2000) bottom of local stack
+; 3800:2000 FATBUF (cluster list)
+;
+;(3800:8000 bottom of 256K memory)
+RELOCSEG	equ	3800h
+		push	si
+		push	cs
+		pop	ds
+		xor	si, si
+		mov	ax, RELOCSEG
+		mov	es, ax
+		mov	di, si
+		mov	cx, 1024 / 2
+		rep	movsw
+		pop	si
+		jmp	word RELOCSEG:cont
+
+cont:
+		mov	ax, cs
+		mov	sp, 2000h	; (offset FATBUF)
+		mov	ss, ax
+%else
 		mov	ax, _SS
 		mov	ss, ax
 		mov	sp, _SP
+%endif
+		sti
 		xor	ax, ax
 		mov	ds, ax
 		mov	al, [DISK_BOOT]	; DA/UA
@@ -485,6 +513,17 @@ readDisk:
 ;.rd_h		db	0
 %endif
 %ifdef NEC98HDD
+    %if 1
+		mov	cx, [bsBytesPerSec]
+	.adj_scale_l0:
+		cmp	cx, [sysPhysicalBPS]
+		jbe	.read_next
+		add	di, di
+		add	ax, ax
+		adc	dx, dx
+		shr	cx, 1
+		jmp	short .adj_scale_l0
+    %else
 		push	dx
 		push	ax
 		xor	dx, dx
@@ -496,6 +535,7 @@ readDisk:
 		pop	ax
 		pop	dx
 		mul	cx
+    %endif
 
 	.read_next:
 		push	dx
