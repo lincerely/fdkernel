@@ -2278,13 +2278,15 @@ STATIC VOID put_funcs(void)
 	UBYTE i;
 	UBYTE x;
 	UBYTE y = get_crt_height();
+	UBYTE ofs = (FUNCTION_FLAG == 2) ? 10 : 0;
 
 	for(x = 0; x < 4; x++)
 		clear_crt(x, y);
 	put_crt_wattr(1, y, peekb(0x60, 0x8b), CLEAR_ATTR);
+	put_crt_wattr(2, y, peekb(0x60, 0x8c), CLEAR_ATTR);
 	for(i = 1; i <= 5; i++)
 	{
-		put_func(x, y, programmable_key[i].table);
+		put_func(x, y, programmable_key[i + ofs].table);
 		x += 6;
 		clear_crt(x++, y);
 	}
@@ -2292,7 +2294,7 @@ STATIC VOID put_funcs(void)
 		clear_crt(x, y);
 	for(; i <= 10; i++)
 	{
-		put_func(x, y, programmable_key[i].table);
+		put_func(x, y, programmable_key[i + ofs].table);
 		x += 6;
 		clear_crt(x++, y);
 	}
@@ -2319,6 +2321,7 @@ STATIC VOID show_function(void)
 			set_curpos(CURSOR_X, SCROLL_BOTTOM - 1);
 		}
 		SCROLL_BOTTOM--;
+		*(UBYTE FAR *)MK_FP(0x60, 0x8c) = ' ';
 		put_funcs();
 
 		FUNCTION_FLAG = 1;
@@ -2436,10 +2439,12 @@ STATIC VOID set_crt_lines(UBYTE is_25line)
   set_curpos(0, 0);
   crt_set_mode(is_25line ? 0 : 1);
   *(UBYTE FAR *)MK_FP(0x60, 0x113) = !!is_25line;
-  if (FUNCTION_FLAG) --new_rows;
   SCROLL_BOTTOM = new_rows;
   clear_crt_all();
-  redraw_function();
+  if (FUNCTION_FLAG) {
+    SCROLL_BOTTOM = --new_rows;
+    redraw_function();
+  }
   update_cursor_view();
 }
 
