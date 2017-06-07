@@ -3461,6 +3461,49 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 				case 0x0000:	/* プロテクトメモリ容量取得 */
 					r->AL = *(UBYTE FAR *)MK_FP(0x0060, 0x0031);
 					return;
+					
+				default:
+				{
+					/*
+						reserve extended memory
+						return:
+						AX==0 success
+						  BX  lowest address (by 64K)
+						  DX  highest address (by 64K)
+						AX==1 not engough memory
+						  BX  largest avail block (by 128K)
+					*/
+					UWORD mem128k = *(UBYTE FAR *)MK_FP(0, 0x0401);
+					UWORD size128k = r->BX;
+					if (size128k <= mem128k)
+					{
+						*(UBYTE FAR *)MK_FP(0, 0x0401) -= (UBYTE)size128k;
+						r->BX = (UWORD)*(UBYTE FAR *)MK_FP(0, 0x0401) * 2 + 0x10;
+						r->DX = r->BX + size128k * 2;
+						r->AX = 0;	/* success */
+					}
+					else
+					{
+						r->AX = 1;	/* fail */
+						r->BX = mem128k;
+					}
+					return;
+				}
+			}
+			break;
+
+		case 0x82:
+			switch(r->AX)
+			{
+				case 0x0000:	/* get extended memory size and region */
+					r->AX = *(UBYTE FAR *)MK_FP(0, 0x0401);
+					r->BX = 0x10;			/* lowest (by 64K) */
+					r->DX = r->BX + (r->AX * 2);	/* highest (by 64K) */
+					return;
+				
+				default:
+					r->AX = 0xffff;
+					return;
 			}
 			break;
 	}
