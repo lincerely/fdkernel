@@ -184,6 +184,14 @@ COUNT UmbState BSS_INIT(0);
 STATIC BYTE szLine[256] BSS_INIT({0});
 STATIC BYTE szBuf[256] BSS_INIT({0});
 
+#define MAX_CHAINS 5
+struct CfgFile {
+  COUNT nFileDesc;
+  COUNT nCfgLine;
+} cfgFile[MAX_CHAINS];
+COUNT nCurChain = 0;
+COUNT nFileDesc;
+
 BYTE singleStep BSS_INIT(FALSE);        /* F8 processing */
 BYTE SkipAllConfig BSS_INIT(FALSE);     /* F5 processing */
 BYTE askThisSingleCommand BSS_INIT(FALSE);      /* ?device=  device?= */
@@ -217,6 +225,7 @@ STATIC VOID InitPgm(BYTE * pLine);
 STATIC VOID InitPgmHigh(BYTE * pLine);
 STATIC VOID CmdInstall(BYTE * pLine);
 STATIC VOID CmdInstallHigh(BYTE * pLine);
+STATIC VOID CmdChain(BYTE * pLine);
 STATIC VOID CmdSet(BYTE * pLine);
 
 
@@ -323,6 +332,7 @@ STATIC struct table commands[] = {
   {"DEVICEHIGH", 2, DeviceHigh},
   {"INSTALL", 2, CmdInstall},
   {"INSTALLHIGH", 2, CmdInstallHigh},
+  {"CHAIN", 2, CmdChain},
   {"SET", 2, CmdSet},
   
   /* default action                                               */
@@ -965,6 +975,15 @@ VOID DoConfig(int nPass)
     }
 #endif
 
+    if (bEof && nCurChain) {
+      struct CfgFile *cfg = &cfgFile[--nCurChain];
+      close(nFileDesc);
+      bEof = FALSE;
+      nFileDesc = cfg->nFileDesc;
+      nCfgLine = cfg->nCfgLine;
+      continue;
+    }
+
     DebugPrintf(("CONFIG=[%s]\n", szLine));
 
     /* Skip leading white space and get verb.               */
@@ -1126,6 +1145,7 @@ UWORD GetBiosKey(int timeout)
 STATIC BOOL SkipLine(char *pLine)
 {
   short key;
+  COUNT i;
 
   if (InitKernelConfig.SkipConfigSeconds >= 0)
   {
@@ -1168,6 +1188,8 @@ STATIC BOOL SkipLine(char *pLine)
   if (!askThisSingleCommand && !singleStep)
     return FALSE;
 
+  for (i = 0; i < nCurChain; i++)
+    printf(" ");
   printf("%s[Y,N]?", pLine);
 
   for (;;)
@@ -2792,6 +2814,27 @@ STATIC VOID CmdInstall(BYTE * pLine)
 STATIC VOID CmdInstallHigh(BYTE * pLine)
 {
   _CmdInstall(pLine,0x80);	/* load high, if possible */
+}
+
+STATIC VOID CmdChain(BYTE * pLine)
+{
+  struct CfgFile *cfg;
+  int fd;
+
+  InstallPrintf(("CHAIN: %s\n", pLine));
+  if (nCurChain >= MAX_CHAINS) {
+    CfgFailure(pLine);
+    return;
+  }
+  if ((fd = open(pLine, 0)) < 0) {
+    CfgFailure(pLine);
+    return;
+  }
+  cfg = &cfgFile[nCurChain++];
+  cfg->nFileDesc = nFileDesc;
+  cfg->nCfgLine = nCfgLine;
+  nFileDesc = fd;
+  nCfgLine = 0;
 }
 
 STATIC VOID InstallExec(struct instCmds *icmd)
