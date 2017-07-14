@@ -79,9 +79,7 @@ struct lol FAR *LoL = &DATASTART;
 VOID ASMCFUNC FreeDOSmain(void)
 {
   unsigned char drv;
-#if !defined(NEC98)
   unsigned char FAR *p;
-#endif
 
 #ifdef _MSC_VER
   extern FAR prn_dev;
@@ -100,6 +98,11 @@ VOID ASMCFUNC FreeDOSmain(void)
 
   drv = LoL->BootDrive + 1;
 #if defined(NEC98)
+  p = MK_FP(0, 0x80 * 4);
+  if (fmemcmp(p+2,"CONFIG",6) == 0)      /* UPX */
+  {
+    fmemcpy((void FAR *)&LowKernelConfig, p+2, sizeof(InitKernelConfig));
+  }
   fmemcpy(&InitKernelConfig, &LowKernelConfig, sizeof(InitKernelConfig));
 #else
 /* IBMPC */
@@ -506,6 +509,14 @@ STATIC void kernel()
     strcpy(p, "TZ=JST-9");
     p += strlen(p) + 1;
 # endif
+    if (InitKernelConfig.DLASortByDriveNo & 0x80)
+    {
+      strcpy(p, "SYSTEMDRIVE=");
+      p += strlen(p);
+      *p++ = 'A' + LoL->BootDrive - 1;
+      strcpy(p, ":");
+      p += 2;
+    }
     strcpy(p, "COMSPEC=");
     p += strlen(p);
 # if 1

@@ -68,7 +68,7 @@ _LowKernelConfig:
 configstart:
 
 %ifdef NEC98
-DLASortByDriveNo            db 1        ; sort disks by drive order
+DLASortByDriveNo            db 0        ; sort disks by drive order (see initdisk.c)
 InitDiskShowDriveAssignment db 1        ;
 SkipConfigSeconds           db 2        ;
 ForceLBA                    db 0        ;

@@ -321,6 +321,50 @@ static void write_trailer(FILE *dest, size_t size, int compress_sys_file,
      from BL; kernel.asm will then check presence of additional
      CONFIG-block at this address. */
 #if defined(NEC98) || defined(FOR_NEC98)
+# define NEC98_USE_NEW_TRAILER 1
+# if defined(NEC98_USE_NEW_TRAILER)
+  static char trailer_nec98[] = {   /* shift down everything by sizeof JumpBehindCode */
+      0x56,                     /* 0x00  push si */
+      0xe8, 0x00, 0x00,         /* 0x01  call $+3      ;(push size_addr) */
+                                /*   ; size_addr: */
+      0xfc,                     /* 0x04  cld */
+      0x0e,                     /* 0x05  push cs */
+      0x1f,                     /* 0x06  pop ds */
+      0x31, 0xf6,               /* 0x07  xor si, si */
+      0x8e, 0xc6,               /* 0x09  mov es, si */
+      0xbf, 0x00, 0x02,         /* 0x0B  mov di, 200h  ;80h * 4 */
+      0xb9, 0x20, 0x00,         /* 0x0E  mov cx, 20h */
+      0xf3, 0xa4,               /* 0x11  rep movsb */
+      0x31, 0xff,               /* 0x13  xor di, di */
+      0x8c, 0xc8,               /* 0x15  mov ax, cs */
+      0x8e, 0xc0,               /* 0x17  mov es, ax */
+      0x40,                     /* 0x19  inc ax */
+      0x40,                     /* 0x1A  inc ax */
+      0x31, 0xf6,               /* 0x1B  xor si, si */
+      0x8e, 0xd8,               /* 0x1D  mov ds, ax */
+      0x59,                     /* 0x1F  pop cx        ; get size_addr */
+      0x81, 0xe9, 0x20, 0x00,   /* 0x20  sub cx, 20h */
+      0xf3, 0xa4,               /* 0x24  rep movsb */
+      0x5e,                     /* 0x26  pop si */
+      0xb8, 0x00, 0x00,         /* 0x27  mov ax, NEW_SS */
+      0x8e, 0xd0,               /* 0x2A  mov ss, ax */
+      0xbc, 0x00, 0x00,         /* 0x2C  mov sp, NEW_SP */
+      0x31, 0xc0,               /* 0x2F  xor ax, ax    ;(stub for sysfile) */
+      0x50,                     /* 0x31  push ax */
+      0xc3                      /* 0x32  ret */
+    };
+  *(short *)&trailer_nec98[0x27 + 1] = start_seg + header->exInitSS;
+  *(short *)&trailer_nec98[0x2c + 1] = header->exInitSP;
+  if (compress_sys_file) {
+    /* just for a proof (NEC98 uncompressed kernel will exceed 64K bytes in size) */
+    /* replace by jmp word ptr [6]: ff 26 06 00
+       (the .SYS strategy handler which will unpack) */
+    *(long *)&trailer_nec98[0x2f] = 0x000626ffL;
+    /* set up a 4K stack for the UPX decompressor to work with */
+    *(short *)&trailer_nec98[0x27 + 1] = start_seg + 0x1000;
+    *(short *)&trailer_nec98[0x2c + 1] = 0x1000;
+  }
+# else
   static char trailer_nec98[] = {   /* shift down everything by sizeof JumpBehindCode */
       0xe8, 0x00, 0x00,         /* call 103                     */
       0x59,                     /* pop cx                       */
@@ -343,6 +387,7 @@ static void write_trailer(FILE *dest, size_t size, int compress_sys_file,
     };
   *(short *)&trailer_nec98[24] = start_seg + header->exInitSS;
   *(short *)&trailer_nec98[29] = header->exInitSP;
+ # endif
   fwrite(trailer_nec98, 1, sizeof trailer_nec98, dest);
 
 #else

@@ -1903,7 +1903,7 @@ STATIC void make_ddt (ddt *pddt, int Unit, int driveno, int flags)
   push_ddt(pddt);
 }
 
-STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
+STATIC COUNT make_floppy_ddts(ddt *pddt, COUNT unit_index, COUNT units)
 {
   COUNT n;
   UBYTE boot_daua;
@@ -1911,7 +1911,10 @@ STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
   boot_daua = BootDaua;
   if ((BootDaua & 0x70) == 0x30)
     boot_daua = 0x90 | (BootDaua & 0x0f);   /* assume 1.44M as 2HD drive */
-  for(n=0; n < sizeof(DauaFDs)/sizeof(DauaFDs[0]); ++n)
+  n = sizeof(DauaFDs)/sizeof(DauaFDs[0]);
+  units += unit_index;
+  if (units > n) units = n;
+  for(n = unit_index; n < units; ++n)
   {
     UBYTE daua = DauaFDs[n];
     if (daua)
@@ -1956,6 +1959,7 @@ STATIC void make_floppy_ddts(ddt *pddt, COUNT units)
       ++nFDUnits;
     }
   }
+  return n;
 }
 
 #elif defined(IBMPC)
@@ -1991,6 +1995,7 @@ void ReadAllPartitionTables(void)
 #endif
 
 #if defined(NEC98)
+  COUNT nFloppyIndex;
   COUNT nFloppyRest;
   BootDaua = peekb(0, 0x584); /* DISK_BOOT */
   BootPartIndex = peekw(0x0, 0x3fe); /* fetch boot partition from BOOTPART_SCRATCHPAD (see boot.asm) */
@@ -2003,10 +2008,32 @@ void ReadAllPartitionTables(void)
   
   nUnits = 0;
   nFloppyRest = BIOS_nfdrives();
-  if (nFloppyRest > 0 && is_daua_fd(BootDaua))
+  nFloppyIndex = 0;
+  /*
+    DLASortByDriveNo:
+    
+    0x80    Boot media type at first, other type succeed (NEC98 common way)
+    0x81    Always A: and B: are reserved for FD, C: is for HD (like IBMPC)
+    0x82    Always DOS partitions in HDs first, then FDs
+    0x83    Always FDs first, then DOS partitions in HDs
+    others  same as 0x80
+  */
+  if (InitKernelConfig.DLASortByDriveNo == 0x81) {
+    /* A: and B: as FD, C: as HD (like IBMPC) */
+    if (nFloppyRest >= 2)
+      nFloppyIndex = make_floppy_ddts(&nddt, nFloppyIndex, 1);
+    else
+      make_ddt(&nddt, 0, 0, 0);
+    if (nFloppyRest >= 1)
+      nFloppyIndex = make_floppy_ddts(&nddt, nFloppyIndex, 1);
+    else
+      make_ddt(&nddt, 0, 0, 0);
+    nUnits = 2;
+  }
+  else if (InitKernelConfig.DLASortByDriveNo != 0x82 && nFloppyRest > 0 && (is_daua_fd(BootDaua) || InitKernelConfig.DLASortByDriveNo == 0x83))
   {
   
-    make_floppy_ddts(&nddt, nFloppyRest);
+    nFloppyIndex = make_floppy_ddts(&nddt, nFloppyIndex, nFloppyRest);
     nFloppyRest = 0;
   }
 #elif defined(IBMPC)
@@ -2061,6 +2088,7 @@ void ReadAllPartitionTables(void)
     foundPartitions[HardDrive] = 0;
   }
 
+#if defined(IBMPC)
   if (InitKernelConfig.DLASortByDriveNo == 0)
   {
     /* printf("Drive Letter Assignment - DOS order\n"); */
@@ -2089,6 +2117,7 @@ void ReadAllPartitionTables(void)
     }
   }
   else
+#endif
   {
 #if defined(NEC98)
     /* nec98: no drive letter re-order (for HDDs) */
@@ -2132,7 +2161,7 @@ void ReadAllPartitionTables(void)
   }
 #if defined(NEC98) /* test */
   if (nFloppyRest > 0)
-    make_floppy_ddts(&nddt, nFloppyRest);
+    make_floppy_ddts(&nddt, nFloppyIndex, nFloppyRest);
 #endif
 }
 
