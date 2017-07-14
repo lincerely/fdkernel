@@ -358,6 +358,9 @@ boot_success:
 		db	" GO! ",0
 		;mov	bl, [bsDriveNumber]
 	%endif
+	%ifdef NEC98HDD
+		mov	si, [BOOTPART_SCRATCHPAD]
+	%endif
 		jmp	word LOADSEG:0
 
 
