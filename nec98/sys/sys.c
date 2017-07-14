@@ -37,7 +37,7 @@
 /* #define DDEBUG */
 
 #define SYS_VERSION "v2.5"
-#define SYS98_VERSION "20170412"
+#define SYS98_VERSION "20170714"
 
 #define REWRITE_ALL_RESERVED_SECTORS 1
 
@@ -259,7 +259,7 @@ int main(int argc, char **argv)
 
   if (argc > 1 && memicmp(argv[1], "CONFIG", 6) == 0)
   {
-#if 0
+#if 1
     exit(FDKrnConfigMain(argc, argv));
 #else
     printf("CONFIG is not supported.\n");
