@@ -542,8 +542,12 @@ _crt_scroll_up:
 
 		call	_get_crt_height
 		mov	dx, ax
+	%if 1
+		mov	bx, 80
+	%else
 		call	_get_crt_width
 		mov	bx, ax
+	%endif
 
 		mov	ax, 60h
 		mov	ds, ax
@@ -642,7 +646,11 @@ _put_crt:
 
 		mov	ax, 0a000h
 		mov	ds, ax
+	%if 1
+		mov	ax, 80		; todo 40cols mode
+	%else
 		call	_get_crt_width
+	%endif
 		mul	byte [bp + 6]	; y * width
 		xor	bh, bh
 		mov	bl, [bp + 4]	; x
@@ -671,7 +679,11 @@ _put_crt_wattr:
 
 		mov	ax, 0a000h
 		mov	ds, ax
+	%if 1
+		mov	ax, 80		; todo: 40cols mode
+	%else
 		call	_get_crt_width
+	%endif
 		mul	byte [bp + 6]	; y * width
 		xor	bh, bh
 		mov	bl, [bp + 4]	; x
@@ -708,7 +720,11 @@ _clear_crt:
 
 		mov	ax, 0a000h
 		mov	ds, ax
+	%if 1
+		mov	ax, 80		; todo: 40cols mode
+	%else
 		call	_get_crt_width
+	%endif
 		mul	byte [bp + 6]	; y * width
 		xor	bh, bh
 		mov	bl, [bp + 4]	; x
