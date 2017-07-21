@@ -2930,52 +2930,41 @@ STATIC VOID parse_esc(UBYTE c)
 						break;
 
 					case 'L':
+						if(int29_esc_cnt == 2)
+						{
+							int29_esc_buf[1] = '0';
+							int29_esc_cnt = 3;
+						}
 						if(int29_esc_cnt >= 3)	/* ESC[<pn>L カーソル上<pn>行クリア */
 						{
 							int pn;
 
 							int29_esc_buf[int29_esc_cnt - 1] = '\0';
 							pn = atoi(&int29_esc_buf[1]);
-							if(pn > 0)
+
+							if(pn > 0 || (pn == 0 && int29_esc_buf[1] == '0'))
 							{
-								UBYTE y = CURSOR_Y;
-
-								if(y > 0)
-								{
-									UBYTE x;
-									UBYTE width	= get_crt_width();
-									BYTE min_y	= y > pn ? y - pn : 0;
-
-									for(y--; y >= min_y; y--)
-										for(x = 0; x < width; x++)
-											clear_crt(x, y);
-								}
+								crt_rolldown(pn);
 							}
 						}
 						break;
 
 					case 'M':
+						if(int29_esc_cnt == 2)
+						{
+							int29_esc_buf[1] = '0';
+							int29_esc_cnt = 3;
+						}
 						if(int29_esc_cnt >= 3)	/* ESC[<pn>M カーソル下<pn>行クリア */
 						{
 							int pn;
 
 							int29_esc_buf[int29_esc_cnt - 1] = '\0';
 							pn = atoi(&int29_esc_buf[1]);
-							if(pn > 0)
+
+							if(pn > 0 || (pn == 0 && int29_esc_buf[1] == '0'))
 							{
-								UBYTE y		= CURSOR_Y;
-								UBYTE max_y	= get_crt_height() - 1;
-
-								if(y < max_y)
-								{
-									UBYTE x;
-									UBYTE width = get_crt_width();
-
-									max_y = y + pn < max_y ? y + pn : max_y;
-									for(y++; y <= max_y; y++)
-										for(x = 0; x < width; x++)
-											clear_crt(x, y);
-								}
+								crt_rollup(pn);
 							}
 						}
 						break;
@@ -3400,6 +3389,12 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					}
 				case 0x0a:  /* clear screen */
 					clear_screen_escj(r->DL, CURSOR_X, CURSOR_Y);
+					return;
+				case 0x0c:  /* scroll down text area */
+					crt_rolldown(r->DL);
+					return;
+				case 0x0d:  /* scroll up text area */
+					crt_rollup(r->DL);
 					return;
 				case 0x0e:  /* set console mode (kanji/graph) */
 					set_graph_state(r->DL);

@@ -530,6 +530,7 @@ _update_cursor_view:
 		ret
 
 
+%if 0
 ; VOID ASMCFUNC crt_scroll_up(VOID)
 		global	_crt_scroll_up
 _crt_scroll_up:
@@ -593,6 +594,7 @@ _crt_scroll_up:
 		pop	si
 		pop	bp
 		ret
+%endif
 
 
 %if 0
@@ -600,6 +602,250 @@ _crt_scroll_up:
 		global	_crt_scroll_down
 _crt_scroll_down:
 %endif
+
+
+; UBYTE ASMCFUNC crt_rollup(UBYTE linecnt)
+		global	_crt_rollup
+_crt_rollup:
+		push	bp
+		mov	bp, sp
+		push	bx
+		push	cx
+		mov	dl, byte [bp + 4]
+		call	crt_internal_roll_setupregs
+		jc	.end
+		call	crt_internal_rollup
+		call	crt_curpos_0y
+	.end:
+		pop	cx
+		pop	bx
+		pop	bp
+		ret
+
+; UBYTE ASMCFUNC crt_rolldown(UBYTE linecnt)
+		global	_crt_rolldown
+_crt_rolldown:
+		push	bp
+		mov	bp, sp
+		push	bx
+		push	cx
+		mov	dl, byte [bp + 4]
+		call	crt_internal_roll_setupregs
+		jc	.end
+		call	crt_internal_rolldown
+		call	crt_curpos_0y
+	.end:
+		pop	cx
+		pop	bx
+		pop	bp
+		ret
+
+crt_internal_roll_setupregs:
+		push	ds
+		mov	ax, 60h
+		mov	ds, ax
+		mov	cl, byte [ds: 0110h]
+		mov	ch, byte [ds: 0112h]
+		mov	bh, byte [ds: 0114h]
+		mov	bl, byte [ds: 0119h]
+		test	dl, dl
+		jnz	.l2
+		mov	dl, 1
+	.l2:
+		pop	ds
+		cmp	ch, cl
+		ret
+
+crt_curpos_0y:
+		push	dx
+		push	ds
+		mov	ax, 60h
+		mov	ds, ax
+		mov	[_cursor_x], ah
+		call	update_curpos
+		pop	ds
+		pop	dx
+		ret
+
+
+; dl  scroll count
+; cl  scroll area Y0 (0...row-1)
+; ch  scroll area Y1 (0...row-1)
+; bl  fill char
+; bh  fill attr
+;
+; ax dx  break on return
+
+crt_internal_rolldown:
+		push	si
+		push	di
+		push	ds
+		push	es
+		mov	ax, 0a000h
+		mov	ds, ax
+		mov	es, ax
+		mov	dh, ch
+		sub	dh, cl
+		jb	.end
+		cmp	dh, dl
+		;jbe	.fill
+		jae	.l2
+		mov	dl, dh
+		inc	dl
+		jmp	short .fill
+	.l2:
+		std
+		mov	al, 160
+		push	ax
+		inc	ch
+		mul	ch
+		dec	ch
+		sub	ax, 2
+		mov	di, ax
+		pop	ax
+		mul	dl
+		mov	si, di
+		sub	si, ax
+		push	cx
+		push	dx
+		push	si
+		push	di
+		mov	al, 80
+		inc	dh
+		sub	dh, dl
+		mul	dh
+		mov	cx, ax
+		rep	movsw
+		pop	di
+		pop	si
+		add	di, 2000h
+		add	si, 2000h
+		mov	cx, ax
+		rep	movsw
+		pop	dx
+		pop	cx
+	.fill:
+		cld
+		push	cx
+		mov	dh, ch
+		sub	dh, dl
+		inc	dh
+		mov	al, 160
+		mul	cl
+		mov	di, ax
+		mov	al, 80
+		mul	dl
+		mov	cx, ax
+		push	cx
+		push	di
+		xor	ax, ax
+		mov	al, bl
+		rep	stosw
+		pop	di
+		pop	cx
+		mov	al, bh
+		mov	ah, bh
+		add	di, 2000h
+		rep	stosw
+		pop	cx
+	.end:
+		pop	es
+		pop	ds
+		pop	di
+		pop	si
+		ret
+
+
+crt_internal_rollup:
+		push	si
+		push	di
+		push	ds
+		push	es
+		mov	ax, 0a000h
+		mov	ds, ax
+		mov	es, ax
+		cld
+		mov	dh, ch
+		sub	dh, cl
+		jb	.end
+		cmp	dh, dl
+		;jbe	.fill
+		jae	.l2
+		mov	dl, dh
+		inc	dl
+		jmp	short .fill
+	.l2:
+		mov	al, 160
+		push	ax
+		mul	cl
+		mov	di, ax
+		pop	ax
+		mul	dl
+		mov	si, di
+		add	si, ax
+		push	cx
+		push	dx
+		push	si
+		push	di
+		mov	al, 80
+		inc	dh
+		sub	dh, dl
+		mul	dh
+		mov	cx, ax
+		rep	movsw
+		pop	di
+		pop	si
+		add	di, 2000h
+		add	si, 2000h
+		mov	cx, ax
+		rep	movsw
+		pop	dx
+		pop	cx
+	.fill:
+		push	cx
+		mov	dh, ch
+		sub	dh, dl
+		inc	dh
+		mov	al, 160
+		mul	dh
+		mov	di, ax
+		mov	al, 80
+		mul	dl
+		mov	cx, ax
+		push	cx
+		push	di
+		xor	ax, ax
+		mov	al, bl
+		rep	stosw
+		pop	di
+		pop	cx
+		mov	al, bh
+		mov	ah, bh
+		add	di, 2000h
+		rep	stosw
+		pop	cx
+	.end:
+		pop	es
+		pop	ds
+		pop	di
+		pop	si
+		ret
+
+; VOID ASMCFUNC crt_scroll_up(VOID)
+		global	_crt_scroll_up
+_crt_scroll_up:
+		push	ax
+		push	bx
+		push	dx
+		
+		call	crt_internal_roll_setupregs
+		mov	cl, 0
+		mov	dl, 1
+		call	crt_internal_rollup
+		pop	dx
+		pop	bx
+		pop	ax
+		ret
 
 
 ; UBYTE ASMCFUNC get_crt_width(VOID)
