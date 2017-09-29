@@ -2269,6 +2269,8 @@ STATIC char strcaseequal(const char * d, const char * s)
     that saves some relocation problems    
 */
 
+#define MAXBUFFERS 31   /* must be less than 64K, i guess */
+#define MINBUFFERS 4
 STATIC void config_init_buffers(int wantedbuffers)
 {
   struct buffer FAR *pbuffer;
@@ -2280,12 +2282,12 @@ STATIC void config_init_buffers(int wantedbuffers)
   else if (HMAState == HMA_DONE)
     buffers = (0xfff0 - HMAFree) / sizeof(struct buffer);
 
-  if (wantedbuffers < 6)         /* min 6 buffers                     */
-    wantedbuffers = 6;
-  if (wantedbuffers > 99)        /* max 99 buffers                    */
+  if (wantedbuffers < MINBUFFERS)        /* min 6 buffers                     */
+    wantedbuffers = MINBUFFERS;
+  if (wantedbuffers > MAXBUFFERS)        /* max 99 buffers                    */
   {
-    printf("BUFFERS=%u not supported, reducing to 99\n", wantedbuffers);
-    wantedbuffers = 99;
+    printf("BUFFERS=%u not supported, reducing to %u\n", wantedbuffers, MAXBUFFERS);
+    wantedbuffers = MAXBUFFERS;
   }
   if (wantedbuffers > buffers)   /* more specified than available -> get em */
     buffers = wantedbuffers;

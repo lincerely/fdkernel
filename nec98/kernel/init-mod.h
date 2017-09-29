@@ -115,7 +115,7 @@ intvec getvec(unsigned char intno);
 #define NSTACKS         8       /* number of stacks             */
 #define STACKSIZE       256     /* default stacksize            */
 #define NLAST           5       /* last drive                   */
-#define NUMBUFF         20      /* Number of track buffers at INIT time     */
+#define NUMBUFF         8       /* Number of track buffers at INIT time     */
                                         /* -- must be at least 3        */
 #define MAX_HARD_DRIVE  8
 #define NDEV            26      /* up to Z:                     */
