@@ -3240,9 +3240,18 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 					UBYTE equips = *(UBYTE FAR *)MK_FP(0, 0x482);
 					UBYTE FAR *p = MK_FP(r->DS, r->DX);
 					int i;
+					/* todo: prepare 0060:1DBB~1DC2 */
 					for(i=0; i<7; ++i)
 					{
-						p[i] = (equips & (1 << i)) ? 0 : 0xffU; /* HDD only, for now... */
+						if (equips & (1 << i))
+						{
+							p[i] = 0;
+						}
+						else
+						{
+                            UBYTE dt = *(UBYTE FAR *)MK_FP(0, 0x460 + i*4);
+							p[i] = dt ? dt : 0xff;
+						}
 					}
 					p[7] = 0xff;
 					return;
