@@ -90,10 +90,10 @@ STATIC void WriteMenuLine(struct MenuSelector *menu)
     return;
 
 #if defined(NEC98)
-  if(menu->bSelected)
-    printf("\x1b[7m");
   /* set cursor position: */
   printf("\x1b[%d;%dH", menu->y + 1, menu->x + 1);
+  printf("\x1b[%dm", (attr & 7) + (menu->bSelected ? 40 : 30));
+  printf("%s", pText);
   /* reset color: */
   printf("\x1b[%dm", 30 + (attr & 7));
 
@@ -2628,6 +2628,12 @@ STATIC void CfgMenuColor(BYTE * pLine)
   pLine = GetNumArg(pLine, &num);
   if (pLine == 0)
     return;
+#if defined(NEC98)
+  if (num >= 0x10 & num <= 0x17)
+    num -= 0x10;
+  if (num >= 30 & num <= 37)
+    num -= 30;
+#endif
   fg = (unsigned char)num;
 
   pLine = skipwh(pLine);
@@ -2637,7 +2643,9 @@ STATIC void CfgMenuColor(BYTE * pLine)
     pLine = GetNumArg(skipwh(pLine+1), &num);
     if (pLine == 0)
       return;
+#if !defined(NEC98)
     bg = (unsigned char)num;
+#endif
   }
   ClearScreen((bg << 4) | fg);
 }
