@@ -404,6 +404,19 @@ segment INIT_TEXT
 
 		global	init_crt
 init_crt:
+		mov	ah, 0bh		; get crt mode
+		int	18h
+		test	al, 80h
+		jz	.setmode
+		push	ax
+		mov	ah, 42h		; set graph mode
+		mov	ch, 0c0h	; 640x400 color
+		int	18h
+		pop	ax
+	.setmode:
+		and	al, 0fch	; bit2=0 (vertical line)
+		mov	ah, 0ah		; set crt mode
+		int	18h
 		mov	ah, 0ch	; show screen
 		int	18h
 		mov	ah, 11h	; view cursor
