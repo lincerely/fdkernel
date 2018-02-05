@@ -2629,10 +2629,12 @@ STATIC void CfgMenuColor(BYTE * pLine)
   if (pLine == 0)
     return;
 #if defined(NEC98)
-  if (num >= 0x10 & num <= 0x17)
-    num -= 0x10;
-  if (num >= 30 & num <= 37)
+  if (num >= 0 && num <= 0x17)
+    num &= 0x07;
+  else if (num >= 30 & num <= 37)
     num -= 30;
+  else
+    return;
 #endif
   fg = (unsigned char)num;
 
