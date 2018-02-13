@@ -853,7 +853,6 @@ copy_char:
 
 VOID DoConfig(int nPass)
 {
-  COUNT nFileDesc;
   BYTE *pLine;
   BOOL bEof = FALSE;
   
