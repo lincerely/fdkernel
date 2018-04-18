@@ -422,6 +422,7 @@ init_crt:
 		mov	ah, 11h	; view cursor
 		int	18h
 
+	%ifdef INHERIT_CURSOR_POSITION
 		pushf
 		cli
 	.loop1:
@@ -446,6 +447,9 @@ init_crt:
 		in	al, dx	; skip
 		in	al, dx	; skip
 		popf
+	%else
+		mov	cx, 0
+	%endif
 
 		mov	ax, 60h
 		mov	ds, ax
