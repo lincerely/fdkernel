@@ -1997,6 +1997,9 @@ void ReadAllPartitionTables(void)
 #if defined(NEC98)
   COUNT nFloppyIndex;
   COUNT nFloppyRest;
+  UBYTE dla;
+  UBYTE use_hd;
+
   BootDaua = peekb(0, 0x584); /* DISK_BOOT */
   BootPartIndex = peekw(0x0, 0x3fe); /* fetch boot partition from BOOTPART_SCRATCHPAD (see boot.asm) */
   pokew(0, 0x3fc, FP_OFF(unhandled_int_handler_iosys));
@@ -2016,9 +2019,25 @@ void ReadAllPartitionTables(void)
     0x81    Always A: and B: are reserved for FD, C: is for HD (like IBMPC)
     0x82    Always DOS partitions in HDs first, then FDs
     0x83    Always FDs first, then DOS partitions in HDs
+    
+    0xF0~F3 when boot from FD, all partitions in HDD are ignored
+            otherwise same as 0x80~83
+    
     others  same as 0x80
   */
-  if (InitKernelConfig.DLASortByDriveNo == 0x81) {
+  use_hd = 1;
+  dla = InitKernelConfig.DLASortByDriveNo;
+  if ((dla & 0xf0) == 0xf0) {
+    if (is_daua_fd(BootDaua)) {
+      use_hd = 0;
+      dla = 0x83;
+    }
+    else {
+      dla &= 0x8f;
+    }
+  }
+  
+  if (dla == 0x81) {
     /* A: and B: as FD, C: as HD (like IBMPC) */
     if (nFloppyRest >= 2)
       nFloppyIndex = make_floppy_ddts(&nddt, nFloppyIndex, 1);
@@ -2030,7 +2049,7 @@ void ReadAllPartitionTables(void)
       make_ddt(&nddt, 0, 0, 0);
     nUnits = 2;
   }
-  else if (InitKernelConfig.DLASortByDriveNo != 0x82 && nFloppyRest > 0 && (is_daua_fd(BootDaua) || InitKernelConfig.DLASortByDriveNo == 0x83))
+  else if (dla != 0x82 && nFloppyRest > 0 && (is_daua_fd(BootDaua) || dla == 0x83))
   {
   
     nFloppyIndex = make_floppy_ddts(&nddt, nFloppyIndex, nFloppyRest);
@@ -2072,6 +2091,10 @@ void ReadAllPartitionTables(void)
 #endif /* IBMPC */
 
   nHardDisk = BIOS_nrdrives();
+#if defined(NEC98)
+  if (!use_hd)
+    nHardDisk = 0;
+#endif
   if (nHardDisk > LENGTH(foundPartitions))
     nHardDisk = LENGTH(foundPartitions);
 
