@@ -2432,6 +2432,103 @@ STATIC VOID clear_screen_escj(UBYTE typ, UBYTE cpos_x, UBYTE cpos_y)
   redraw_function();
 }
 
+STATIC VOID erase_line_esck(UBYTE typ, UBYTE cpos_x, UBYTE cpos_y)
+{
+  UBYTE columns = get_crt_width();
+  UBYTE x;
+  
+  if (cpos_y >= get_crt_height()) return;
+  switch(typ)
+  {
+    /* ESC[0K erase line from the cursor position to the end-of-line */
+    case 0:
+      for(x = cpos_x; x < columns; ++x)
+        clear_crt(x, cpos_y);
+      break;
+    
+    /* ESC[1K erase line from the beginng-of-line to the cursor position */
+    case 1:
+      for(x = 0; x <= cpos_x; ++x)
+        clear_crt(x, cpos_y);
+      break;
+    
+    /* ESC[2K clear the line where the cursor is placed */
+    case 2:
+      for(x = 0; x < columns; ++x)
+        clear_crt(x, cpos_y);
+      break;
+  }
+}
+
+STATIC VOID move_cursor_up(UBYTE count)
+{
+  UBYTE y = CURSOR_Y;
+
+  if (count == 0) count = 1;
+  y = (y > count) ? (y - count) : 0;
+  set_curpos(CURSOR_X, y);
+}
+
+STATIC VOID move_cursor_down(UBYTE count)
+{
+  UWORD rows = (UWORD)(UBYTE)(get_crt_height());
+  UWORD y = (UWORD)(UBYTE)(CURSOR_Y);
+
+  if (count == 0) count = 1;
+  y += count;
+  if (y >= rows) y = rows - 1;
+  set_curpos(CURSOR_X, (UBYTE)y);
+}
+
+STATIC VOID move_cursor_left(UBYTE count)
+{
+  UBYTE x = CURSOR_X;
+
+  if (count == 0) count = 1;
+  x = (x > count) ? (x - count) : 0;
+  set_curpos(x, CURSOR_Y);
+}
+
+STATIC VOID move_cursor_right(UBYTE count)
+{
+  UWORD columns = (UWORD)(UBYTE)(get_crt_width());
+  UWORD x = (UWORD)(UBYTE)(CURSOR_X);
+
+  if (count == 0) count = 1;
+  x += count;
+  if (x >= columns) x = columns - 1;
+  set_curpos((UBYTE)x, CURSOR_Y);
+}
+
+STATIC VOID roll_screen_up(VOID) /* move cursor down or scroll up (EscD) */
+{
+  UBYTE rows = get_crt_height();
+  UBYTE y = CURSOR_Y;
+
+  y++;
+  if (y >= rows)
+  {
+    crt_scroll_up();
+    y = rows - 1;
+  }
+  set_curpos(CURSOR_X, y);
+}
+
+STATIC VOID roll_screen_down(VOID) /* move cursor up or scroll down (EscM) */
+{
+  UBYTE y = CURSOR_Y;
+
+  if (y == 0)
+  {
+    crt_rolldown(1);
+  }
+  else
+  {
+    --y;
+    set_curpos(CURSOR_X, y);
+  }
+}
+
 STATIC VOID set_crt_lines(UBYTE is_25line)
 {
   UBYTE new_rows = is_25line ? 24 : 19;
@@ -2517,14 +2614,7 @@ STATIC VOID parse_esc(UBYTE c)
 			case 'D':
 				if(int29_esc_cnt == 1)	/* ESCD カーソル下1移動 */
 				{
-					UBYTE y = CURSOR_Y;
-					if(y + 1 < get_crt_height())
-					{
-						y++;
-						set_curpos(CURSOR_X, y);
-					}
-					else
-						crt_scroll_up();
+					roll_screen_up();
 				}
 				break;
 
@@ -2539,16 +2629,7 @@ STATIC VOID parse_esc(UBYTE c)
 			case 'M':
 				if(int29_esc_cnt == 1)	/* ESCM カーソル上1移動 */
 				{
-					UBYTE y = CURSOR_Y;
-					if(y > 0)
-					{
-						y--;
-						set_curpos(CURSOR_X, y);
-					}
-/*
-					else
-						crt_scroll_down();
-*/
+					roll_screen_down();
 				}
 				break;
 
@@ -2897,35 +2978,7 @@ STATIC VOID parse_esc(UBYTE c)
 						}
 						if(int29_esc_cnt == 3)
 						{
-							switch(int29_esc_buf[1])
-							{
-								case '0':	/* ESC[0K カーソル位置から右端までクリア */
-									{
-										UBYTE x;
-										UBYTE y		= CURSOR_Y;
-										UBYTE width	= get_crt_width();
-										for(x = CURSOR_X; x < width; x++)
-											clear_crt(x, y);
-									}
-									break;
-								case '1':	/* ESC[1K 左端からカーソル位置までクリア */
-									{
-										BYTE x;
-										UBYTE y = CURSOR_Y;
-										for(x = CURSOR_X; x >= 0; x--)
-											clear_crt(x, y);
-									}
-									break;
-								case '2':	/* ESC[2K カーソル位置の行クリア */
-									{
-										UBYTE x;
-										UBYTE y		= CURSOR_Y;
-										UBYTE width	= get_crt_width();
-										for(x = 0; x < width; x++)
-											clear_crt(x, y);
-									}
-									break;
-							}
+							erase_line_esck(int29_esc_buf[1] - '0', CURSOR_X, CURSOR_Y);
 						}
 						break;
 
@@ -2945,6 +2998,7 @@ STATIC VOID parse_esc(UBYTE c)
 							if(pn > 0 || (pn == 0 && int29_esc_buf[1] == '0'))
 							{
 								crt_rolldown(pn);
+								set_curpos(0, CURSOR_Y);
 							}
 						}
 						break;
@@ -2965,6 +3019,7 @@ STATIC VOID parse_esc(UBYTE c)
 							if(pn > 0 || (pn == 0 && int29_esc_buf[1] == '0'))
 							{
 								crt_rollup(pn);
+								set_curpos(0, CURSOR_Y);
 							}
 						}
 						break;
@@ -3396,14 +3451,37 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 #endif
 						return;
 					}
+				case 0x04:  /* move cursor down or scroll up (EscD) */
+					roll_screen_up();
+					return;
+				case 0x05:  /* move cursor up or scroll down (EscM) */
+					roll_screen_down();
+					return;
+				case 0x06:  /* move cursor up (Esc[nA) */
+					move_cursor_up(r->DL);
+					return;
+				case 0x07:  /* move cursor down (Esc[nB) */
+					move_cursor_down(r->DL);
+					return;
+				case 0x08:  /* move cursor right (Esc[nC) */
+					move_cursor_right(r->DL);
+					return;
+				case 0x09:  /* move cursor left (Esc[nD) */
+					move_cursor_left(r->DL);
+					return;
 				case 0x0a:  /* clear screen */
 					clear_screen_escj(r->DL, CURSOR_X, CURSOR_Y);
 					return;
+				case 0x0b:  /* clear line (Esc[nK) */
+					erase_line_esck(r->DL, CURSOR_X, CURSOR_Y);
+					return;
 				case 0x0c:  /* scroll down text area */
 					crt_rolldown(r->DL);
+					set_curpos(0, CURSOR_Y);
 					return;
 				case 0x0d:  /* scroll up text area */
 					crt_rollup(r->DL);
+					set_curpos(0, CURSOR_Y);
 					return;
 				case 0x0e:  /* set console mode (kanji/graph) */
 					set_graph_state(r->DL);

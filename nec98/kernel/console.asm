@@ -632,7 +632,6 @@ _crt_rollup:
 		call	crt_internal_roll_setupregs
 		jc	.end
 		call	crt_internal_rollup
-		call	crt_curpos_0y
 	.end:
 		pop	cx
 		pop	bx
@@ -650,7 +649,6 @@ _crt_rolldown:
 		call	crt_internal_roll_setupregs
 		jc	.end
 		call	crt_internal_rolldown
-		call	crt_curpos_0y
 	.end:
 		pop	cx
 		pop	bx
@@ -671,17 +669,6 @@ crt_internal_roll_setupregs:
 	.l2:
 		pop	ds
 		cmp	ch, cl
-		ret
-
-crt_curpos_0y:
-		push	dx
-		push	ds
-		mov	ax, 60h
-		mov	ds, ax
-		mov	[_cursor_x], ah
-		call	update_curpos
-		pop	ds
-		pop	dx
 		ret
 
 
