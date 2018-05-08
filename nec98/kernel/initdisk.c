@@ -1279,8 +1279,13 @@ PartitionsField ScanForPrimaryPartitions(struct DriveParamS * driveParam,
         && (pEntry->Bootable & ~0xf) != 0xa0)   /* Axh; MS-DOS Bootable Partition (pc98) */
       continue;
 
+# if defined(WITHFAT32)
+    if (pEntry->FileSystem != 0x81 && pEntry->FileSystem != 0x91 && pEntry->FileSystem != 0xa1 && pEntry->FileSystem != 0xe1)	/* 81h or 91h; MS-DOS Active Partition (pc98) */
+      continue;
+# else
     if (pEntry->FileSystem != 0x81 && pEntry->FileSystem != 0x91 && pEntry->FileSystem != 0xa1)	/* 81h or 91h; MS-DOS Active Partition (pc98) */
       continue;
+# endif
 #else
     if (pEntry->FileSystem == 0)
       continue;
