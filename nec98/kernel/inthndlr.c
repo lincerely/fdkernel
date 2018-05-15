@@ -3394,6 +3394,34 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 			}
 			break;
 
+		case 0x0e:		/* RS-232C */
+			/* DL  bit7~4: port number, bit3~0: command */
+			if ((r->DL & 0x0f) == 7)	/* optional serial borard (PC-9861K) support */
+			{
+				r->AX = 0xffff;		/* PC-9861K not exist (not supported yet) */
+				return;
+			}
+			if (r->DL <= 0x0f)		/* (r->DL >> 4) == 0 : on-board RS-232C */
+			{
+				switch (r->DL & 0x0f)
+				{
+					case 0:		/* query length of receive buffer */
+						r->AX = 0;
+						return;
+					case 1:		/* initialize the RS-232C port */
+						*(UBYTE FAR *)MK_FP(0x60, 0x68) = r->BH;
+						*(UBYTE FAR *)MK_FP(0x60, 0x69) = r->BL;
+						return;
+					case 6:		/* query current configuration of the port */
+						r->BH = peekb(0x60, 0x68);
+						r->BL = peekb(0x60, 0x69);
+						/* seems AX not modified */
+						return;
+				}
+				break;
+			}
+			break;
+
 		case 0x0f:
 			switch(r->AX & 0xfff0)
 			{
