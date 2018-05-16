@@ -351,6 +351,9 @@ GenStrategy:
 %ifdef NEC98
 ; NEC98
 NulIntr:
+		extern _nul_intr
+		jmp far _nul_intr
+%if 0
                 push    es
                 push    bx
                 les     bx,[cs:_ReqPktPtr]            ;es:bx--> rqheadr
@@ -358,6 +361,7 @@ NulIntr:
                 pop     bx
                 pop     es
                 retf
+%endif
 
 
                 global NulIntr
