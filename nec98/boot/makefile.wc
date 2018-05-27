@@ -8,7 +8,7 @@
 #SRCD=..$(DIRSEP)..$(DIRSEP)boot$(DIRSEP)
 SRCD=.$(DIRSEP)
 
-production:     b_fat12f.bin b_fat12.bin b_fat16.bin
+production:     b_fat12f.bin b_fat12.bin b_fat16.bin b_fat32.bin
 
 
 b_fat12.bin:    $(SRCD)boot.asm
@@ -22,6 +22,10 @@ b_fat12f.bin:    $(SRCD)boot.asm
 
 b_fat16.bin:    $(SRCD)boot.asm
 	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT16 -dNEC98HDD $[@ -l $^*.lst -o $^@
+
+
+b_fat32.bin:    $(SRCD)bootn32.asm
+	$(NASM) $(NASMFLAGS_PLATFORM) -O3 -dISFAT32 -dNEC98HDD $[@ -l $^*.lst -o $^@
 
 clobber:        clean
 	-$(RM) *.bin status.me

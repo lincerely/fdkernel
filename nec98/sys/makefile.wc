@@ -41,6 +41,9 @@ b_fat12f.h:	../boot/b_fat12f.bin bin2c.exe
 b_fat16.h:	../boot/b_fat16.bin bin2c.exe
 	.$(DIRSEP)bin2c.exe ../boot/b_fat16.bin b_fat16.h b_fat16
 
+b_fat32.h:	../boot/b_fat32.bin bin2c.exe
+	.$(DIRSEP)bin2c.exe ../boot/b_fat32.bin b_fat32.h b_fat32
+
 
 prf.obj:	$(KSRCD)prf.c
 		$(CC) $(CFLAGS) $[@
@@ -63,6 +66,6 @@ clean:
 		-$(RM) *.o
 
 #		*Individual File Dependencies*
-sys.obj: .$(DIRSEP)sys.c $(HDRD)portab.h $(HDRD)device.h b_fat12.h b_fat12f.h b_fat16.h
+sys.obj: .$(DIRSEP)sys.c $(HDRD)portab.h $(HDRD)device.h b_fat12.h b_fat12f.h b_fat16.h b_fat32.h
 		$(CC) $(CFLAGS) $[@
 

@@ -37,9 +37,7 @@
 /* #define DDEBUG */
 
 #define SYS_VERSION "v2.5"
-#define SYS98_VERSION "20170714"
-
-#define REWRITE_ALL_RESERVED_SECTORS 1
+#define SYS98_VERSION "20180527"
 
 #include <stdlib.h>
 #include <dos.h>
@@ -62,9 +60,10 @@ extern WORD CDECL printf(CONST BYTE * fmt, ...);
 extern WORD CDECL sprintf(BYTE * buff, CONST BYTE * fmt, ...);
 #endif
 
-#if defined(NEC98) || defined(FOR_NEC98)
-/* todo... support fat32 boot (really?) */
-#undef WITHFAT32
+#if defined(WITHFAT32)
+# define REWRITE_MULTIPLE_SECTORS 1
+#else
+# define REWRITE_ALL_RESERVED_SECTORS 1
 #endif
 
 #include "b_fat12.h"
@@ -208,9 +207,9 @@ struct bootsectortype32 {
   ULONG bsHiddenSecs;
   ULONG bsHugeSectors;
   ULONG bsBigFatSize;
-  UBYTE bsFlags;
+  UWORD bsFlags;
+  UBYTE bsMinorVersion;
   UBYTE bsMajorVersion;
-  UWORD bsMinorVersion;
   ULONG bsRootCluster;
   UWORD bsFSInfoSector;
   UWORD bsBackupBoot;
@@ -221,10 +220,10 @@ struct bootsectortype32 {
   ULONG bsSerialNumber;
   char bsVolumeLabel[11];
   char bsFileSystemID[8];
-  ULONG sysFatStart;
-  ULONG sysDataStart;
-  UWORD sysFatSecMask;
-  UWORD sysFatSecShift;
+  ULONG sysFatStart;            /* fd98 boot */
+  ULONG sysDataStart;           /* fd98 boot */
+  UWORD sysFatSecMask;          /* fd98 boot */
+  UWORD sysFatSecShift;         /* fd98 boot */
 };
 
 UBYTE newboot[MAX_SEC_SIZE], oldboot[MAX_SEC_SIZE];
@@ -748,7 +747,7 @@ int ReadBootSectors(int DosDrive, void *buffer, size_t buffer_limit)
   if (rc == 0)
   {
     struct bootsectortype *bs = (struct bootsectortype *)buffer;
-    ULONG boot_bytes = bs->bsBytesPerSec * bs->bsResSectors;
+    ULONG boot_bytes = (ULONG)(bs->bsBytesPerSec) * bs->bsResSectors;
     if (boot_bytes == 0 || boot_bytes > buffer_limit)
     {
       printf("Unsupported boot record (bytes per sector = %u, reserved sectors = %d).\n", 
@@ -761,10 +760,78 @@ int ReadBootSectors(int DosDrive, void *buffer, size_t buffer_limit)
   return rc;
 }
 
-int WriteBootSectors(int DosDrive, CONST void *buffer)
+int WriteBootSectors(int DosDrive, CONST void *buffer, size_t buffer_limit)
 {
   CONST struct bootsectortype *bs = (CONST struct bootsectortype *)buffer;
+  ULONG boot_bytes = (ULONG)(bs->bsBytesPerSec) * bs->bsResSectors;
+  if (boot_bytes == 0 || boot_bytes > buffer_limit)
+  {
+    printf("Unsupported boot record (bytes per sector = %u, reserved sectors = %d).\n", 
+           bs->bsBytesPerSec, bs->bsResSectors);
+    exit(1);
+  }
   return MyAbsReadWrite(DosDrive, bs->bsResSectors, 0, (void *)buffer, 0x26);
+}
+#elif defined(REWRITE_MULTIPLE_SECTORS)
+int ReadBootSectors(int DosDrive, void *buffer, size_t buffer_limit)
+{
+  int rc;
+
+  rc = MyAbsReadWrite(DosDrive, 1, 0, buffer, 0x25);
+  if (rc == 0)
+  {
+    struct bootsectortype *bs = (struct bootsectortype *)buffer;
+    ULONG boot_bytes = (ULONG)(bs->bsBytesPerSec) * bs->bsResSectors;
+    UWORD scount;
+
+    if (boot_bytes > buffer_limit) boot_bytes = buffer_limit;
+    if (boot_bytes == 0 || boot_bytes < 512)
+    {
+      printf("Unsupported boot record (bytes per sector = %u, reserved sectors = %d).\n", 
+             bs->bsBytesPerSec, bs->bsResSectors);
+      exit(1);
+    }
+    scount = (UWORD)(boot_bytes / bs->bsBytesPerSec);
+    if (scount > bs->bsResSectors) scount = bs->bsResSectors;
+    if (scount == 0) scount = 1;
+#ifdef DEBUG
+    printf("Reading %u sector%s (%lubytes)...", scount, (scount == 1) ? "" : "s", (ULONG)scount * bs->bsBytesPerSec);
+#endif
+    rc = MyAbsReadWrite(DosDrive, scount, 0, buffer, 0x25);
+#ifdef DEBUG
+    printf("result=%d (%s)\n", rc, rc ? "failure" : "OK");
+#endif
+  }
+
+  return rc;
+}
+
+int WriteBootSectors(int DosDrive, CONST void *buffer, size_t buffer_limit)
+{
+  CONST struct bootsectortype *bs = (CONST struct bootsectortype *)buffer;
+  ULONG boot_bytes = (ULONG)(bs->bsBytesPerSec) * bs->bsResSectors;
+  UWORD scount;
+  int rc;
+
+  if (boot_bytes > buffer_limit) boot_bytes = buffer_limit;
+  if (boot_bytes == 0 || boot_bytes < 512)
+  {
+    printf("Unsupported boot record (bytes per sector = %u, reserved sectors = %d).\n", 
+           bs->bsBytesPerSec, bs->bsResSectors);
+    exit(1);
+  }
+  scount = (UWORD)(boot_bytes / bs->bsBytesPerSec);
+  if (scount > bs->bsResSectors) scount = bs->bsResSectors;
+  if (scount == 0) scount = 1;
+#ifdef DEBUG
+    printf("writing %u sector%s (%lubytes)...", scount, (scount == 1) ? "" : "s", (ULONG)scount * bs->bsBytesPerSec);
+#endif
+  rc = MyAbsReadWrite(DosDrive, scount, 0, (void *)buffer, 0x26);
+#ifdef DEBUG
+    printf("result=%d (%s)\n", rc, rc ? "failure" : "OK");
+#endif
+
+  return rc;
 }
 #endif
 
@@ -775,7 +842,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #ifdef WITHFAT32
   struct bootsectortype32 *bs32;
 #endif
-  int fs;
+  int fs = 12;
   char drivename[] = "A:\\";
   static unsigned char x[0x40]; /* we make this static to be 0 by default -
 				   this avoids FAT misdetections */
@@ -789,7 +856,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #endif
 
   reset_drive(drive);
-#if defined(REWRITE_ALL_RESERVED_SECTORS)
+#if defined(REWRITE_ALL_RESERVED_SECTORS) || defined(REWRITE_MULTIPLE_SECTORS)
   if (ReadBootSectors(drive, oldboot, sizeof(oldboot)) != 0)
 #else
   if (MyAbsReadWrite(drive, 1, 0, oldboot, 0x25) != 0)
@@ -804,16 +871,33 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   dump_sector(oldboot);
 #endif
 
-  bs = (struct bootsectortype *)&oldboot;
+  bs = (struct bootsectortype *)oldboot;
   if (bs->bsBytesPerSec * bs->bsResSectors < 512)
   {
     printf("The boot sector is too small (less than 512bytes)\n");
     exit(1);
   }
-  if (bs->bsBootSignature != 0x29)
+#ifdef WITHFAT32
+  bs32 = (struct bootsectortype32 *)oldboot;
+  if ((bs32->bsJump[0] == 0xe9 || bs32->bsJump[0] == 0xeb) &&
+       bs32->bsRootDirEnts == 0 &&
+       bs32->bsSectors == 0 &&
+       bs32->bsFATsecs == 0 &&
+       /* memcmp(bs32->bsFileSystemID, "FAT32", 5) == 0 &&  */ /* (suggestive) */
+       bs32->bsExtendedSignature == 0x29
+      )
+  {
+    fs = 32;
+#if defined(REWRITE_MULTIPLE_SECTORS)
+    /* workaround for FAT32 (to preserve FSINFO) */
+    memcpy(newboot, oldboot, sizeof(newboot));
+#endif
+  }
+#endif
+  if (fs != 32 && bs->bsBootSignature != 0x29)
   {
     /* non extended BPB */
-    struct nec3hdbootsectortype *bsnec3 = (struct nec3hdbootsectortype *)&oldboot;
+    struct nec3hdbootsectortype *bsnec3 = (struct nec3hdbootsectortype *)oldboot;
     if (memcmp(bsnec3->bsJump, "\xeb" "\x1f" "\x90", 3) == 0 && bsnec3->bsMedia == 0xf8)
     {
       /* if the PBR is NEC DOS 3.3 one, fetch the beginning LBA */
@@ -854,10 +938,12 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   {
     fs = 16;
   }
+#if 0
   else
   {
     fs = 12;
   }
+#endif
 
 /*
     the above code is not save enough for me (TE), so we change the
@@ -951,16 +1037,19 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #endif
     memcpy(&newboot[SBOFFSET], &oldboot[SBOFFSET], SBSIZE);
 
-  bs = (struct bootsectortype *)&newboot;
+  bs = (struct bootsectortype *)newboot;
 
 #if defined(NEC98)
-  rewrite_bpb_geo(drive, bs);
-  if (bs->bsBootSignature != 0x29 && fs != 32)
+  if (fs != 32)
   {
-    /* write dummy for a proof */
-    bs->bsHugeSectors = 0;
-    bs->bsVolumeID = 0;
-    memcpy(bs->bsVolumeLabel, "NO NAME    ", sizeof bs->bsVolumeLabel);
+    rewrite_bpb_geo(drive, bs);
+    if (bs->bsBootSignature != 0x29)
+    {
+      /* write dummy for a proof */
+      bs->bsHugeSectors = 0;
+      bs->bsVolumeID = 0;
+      memcpy(bs->bsVolumeLabel, "NO NAME    ", sizeof bs->bsVolumeLabel);
+    }
   }
 #endif
 /*
@@ -970,7 +1059,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #ifdef WITHFAT32
   if (fs == 32)
   {
-    bs32 = (struct bootsectortype32 *)&newboot;
+    bs32 = (struct bootsectortype32 *)newboot;
 
     temp = bs32->bsHiddenSecs + bs32->bsResSectors;
     bs32->sysFatStart = temp;
@@ -1048,6 +1137,7 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
   }
 
 #ifdef DEBUG
+  if (fs != 32)
   {
   UWORD s_scale = bs->bsBytesPerSec / bs->sysPhysicalBPS;
   printf("Root dir entries = %u\n", bs->bsRootDirEnts);
@@ -1085,8 +1175,8 @@ VOID put_boot(COUNT drive, BYTE * bsFile, BOOL both)
 #if defined(TEST_SYS)
     printf("test mode ... not write the boot sector.\n");
 #else
-#if defined(REWRITE_ALL_RESERVED_SECTORS)
-    if (WriteBootSectors(drive, newboot) != 0)
+#if defined(REWRITE_ALL_RESERVED_SECTORS) || defined(REWRITE_MULTIPLE_SECTORS)
+    if (WriteBootSectors(drive, newboot, sizeof(newboot)) != 0)
 #else
     if (MyAbsReadWrite(drive, 1, 0, newboot, 0x26) != 0)
 #endif
