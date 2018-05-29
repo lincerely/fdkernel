@@ -12,7 +12,7 @@ segment CONST2
 	GLOBAL _nlsPackageHardcoded
 _nlsPackageHardcoded:
 	DB  000h, 000h, 000h, 000h, 051h, 000h, 0a4h, 003h
-	DB  00fh, 000h, 059h, 000h, 000h, 000h, 006h, 000h
+	DB  00fh, 000h, 059h, 000h, 04eh, 000h, 006h, 000h
 	DB  002h
 	DW ?table2, SEG ?table2
 	DB  004h
