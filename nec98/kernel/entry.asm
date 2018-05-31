@@ -41,6 +41,8 @@ segment HMA_TEXT
                 extern   _int29_main
                 extern   _intdc_main
                 extern   _in_processing_stopkey:wrt PGROUP
+                extern   _clear_attr:wrt PGROUP
+                extern   _put_attr:wrt PGROUP
                 extern   _nec98_flush_bios_keybuf
 %endif
                 extern   _error_tos:wrt DGROUP
@@ -295,6 +297,8 @@ reloc_call_int6_handler:
                 mov bl, 13h
                 test byte [es:053ah], 1               ; shift key pressed?
                 jnz .press_stop_l2
+                mov bl, [_clear_attr]
+                mov [_put_attr], bl
                 mov bl, 03h
   .press_stop_l2:
                 call far _nec98_flush_bios_keybuf
