@@ -44,6 +44,7 @@ segment HMA_TEXT
                 extern   _clear_attr:wrt PGROUP
                 extern   _put_attr:wrt PGROUP
                 extern   _cursor_view:wrt PGROUP
+                extern   _fd98_retract_hd_pending:wrt PGROUP
                 extern   _nec98_flush_bios_keybuf
 %endif
                 extern   _error_tos:wrt DGROUP
@@ -298,6 +299,7 @@ reloc_call_int6_handler:
                 mov bl, 13h
                 test byte [es:053ah], 1               ; shift key pressed?
                 jnz .press_stop_l2
+                mov byte [_fd98_retract_hd_pending], 1
                 push ax
                 mov al, [_clear_attr]
                 mov [_put_attr], al

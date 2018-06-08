@@ -211,6 +211,13 @@ _esc_seq_cursor_pos db  1bh, '[24;80R'  ; 012ch - 0133h scratchpad for esc[6n re
 
 ;               resb    256 - ($ - entry)
 
+%if 1
+                resb    0fffh - ($ - entry)
+                global  _fd98_retract_hd_pending
+_fd98_retract_hd_pending db 0           ; a temporary solution: not compatible with MS-DOS
+
+%endif
+
 %ifdef DUMMY_CON_IN_IOSYS
 ; dummy con driver (workaround for some FEP driver(s) - yes, ATOK6 it is)
 ; On genuine (NEC's and EPSON's) MS-DOSes, CON device is placed at:
@@ -1104,14 +1111,55 @@ segment _STACK  class=STACK stack
     
 
 segment CONST
+%ifdef NEC98
+retract_hd:
+                push dx
+                xor ax, ax
+                mov ds, ax
+                mov dl, byte [055dh]	; DISK_EQUIP  bit0~3 SASI/IDE HDs #0~3
+                mov dh, byte [0482h]	; DISK_EQUIPS bit0~6 SCSI HDs #0~6
+                and dx, 7f0fh
+                mov al, 80h		; SASI/IDE base DA/UA
+                call .rh_sub
+                mov al, 0A0h		; SCSI base DA/UA
+                mov dl, dh
+                call .rh_sub
+                pop dx
+                jmp short retract_hd_exit
+.rh_sub:
+                shr dl, 1
+                jnc .rh_sub_next
+                push ax
+                mov ah, 2fh		; retract HD, no retry
+                int 1bh
+                pop ax
+.rh_sub_next:
+                inc al
+                test dl, dl
+                jnz .rh_sub
+                ret
+%endif
         ; dummy interrupt return handlers
 
                 global _int22_handler
                 global _int28_handler
                 global _int2a_handler
                 global _empty_handler
-_int22_handler:         
 _int28_handler:
+%ifdef NEC98
+                push ax
+                push ds
+                mov ax, 60h
+                mov ds, ax
+                xchg [_fd98_retract_hd_pending], ah
+                cmp ah, 0
+                jne retract_hd
+retract_hd_exit:
+                pop ds
+                pop ax
+%endif
+_int22_handler:         
+;_int28_handler:
 _int2a_handler:
 _empty_handler:
                 iret
