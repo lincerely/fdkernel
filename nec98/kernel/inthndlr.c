@@ -2239,10 +2239,11 @@ STATIC VOID put_func(UBYTE x, UBYTE y, UBYTE *p)
 {
 	UBYTE cnt			= 6;
 	UBYTE clear_char	= CLEAR_CHAR;
+	UBYTE attr_r		= CLEAR_ATTR ^ 4; /* reverse */
 
 	if(*p == 0xfe)
 	{
-		put_crt_wattr(x++, y, clear_char, 4);
+		put_crt_wattr(x++, y, clear_char, attr_r);
 		p++;
 		cnt--;
 	}
@@ -2259,17 +2260,17 @@ STATIC VOID put_func(UBYTE x, UBYTE y, UBYTE *p)
 				p++;
 				k = sjis2jis(((UWORD)c << 8) | *p++) - 0x2000;
 				k = (k << 8) | (k >> 8);
-				put_crt_wattr(x++, y, k, 4);
-				put_crt_wattr(x++, y, k | 0x80, 4);
+				put_crt_wattr(x++, y, k, attr_r);
+				put_crt_wattr(x++, y, k | 0x80, attr_r);
 			}
 			else
 			{
-				put_crt_wattr(x++, y, c, 4);
+				put_crt_wattr(x++, y, c, attr_r);
 				p++;
 			}
 		}
 		else
-			put_crt_wattr(x++, y, clear_char, 4);
+			put_crt_wattr(x++, y, clear_char, attr_r);
 	}
 }
 
