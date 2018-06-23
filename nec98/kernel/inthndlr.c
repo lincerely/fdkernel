@@ -2724,9 +2724,14 @@ STATIC VOID parse_esc(UBYTE c)
 					case 'm':
 						if(int29_esc_cnt >= 2)	/* ESC[<ps>;...;<ps>m 表示属性<ps>設定 */
 						{
+							CONST STATIC UBYTE palgbr[8] = { 0x00, 0x40, 0x20, 0x60, 0x80, 0xc0, 0xa0, 0xe0 }; /* ESC[17m..23m */
+							CONST STATIC UBYTE palbgr[8] = { 0x00, 0x40, 0x80, 0xc0, 0x20, 0x60, 0xa0, 0xe0 }; /* ESC[30m..37m */
+							UBYTE clr_attr = CLEAR_ATTR;
+							UBYTE new_attr = clr_attr & 0xf0;
 							UBYTE *arg;
 							UBYTE *next_arg;
 
+							if ((new_attr & 0x10) == 0) new_attr |= 1;
 							int29_esc_buf[int29_esc_cnt - 1] = '\0';
 							for(arg = &int29_esc_buf[1]; arg != NULL; arg = next_arg)
 							{
@@ -2740,52 +2745,49 @@ STATIC VOID parse_esc(UBYTE c)
 								{
 									switch(attr)
 									{
-										case 0:		/* デフォルト */
-											PUT_ATTR = CLEAR_ATTR;
-											break;
-										case 1: 	/* ハイライト */
+										case 1: 	/* ハイライト (Bold) */
+											new_attr |= 0xe0;
 											break;
 										case 2:		/* バーティカルライン */
-											PUT_ATTR |= 0x10;
+											new_attr |= 0x10;
 											break;
 										case 4:		/* アンダーライン */
-											PUT_ATTR |= 0x08;
+											new_attr |= 0x08;
 											break;
 										case 5:		/* ブリンク */
-											PUT_ATTR |= 0x02;
+											new_attr |= 0x02;
 											break;
 										case 7:		/* リバース */
-											PUT_ATTR |= 0x04;
+											new_attr |= 0x04;
 											break;
 										case 8:		/* シークレット */
-										case 16:	/* シークレット */
-											PUT_ATTR &= 0xfe;
+										case 16:
+											new_attr &= 0xfe;
+											break;
+										default:
+											new_attr = clr_attr;
 											break;
 									}
 								}
 								else if(attr >= 17 && attr <= 23)
 								{
-									attr -= 17 - 1;
-									attr = ((attr << 5) & 0x80 ) | ((attr << 6) & 0x40) | ((attr << 4) & 0x20);
-									PUT_ATTR &= 0x1b;
-									PUT_ATTR |= attr;
+									new_attr = (new_attr & 0x1f) | palgbr[attr & 7];
 								}
 								else if(attr >= 30 && attr <= 37)
 								{
-									attr -= 30;
-									attr = (attr << 6) | ((attr << 3) & 0x20);
-									PUT_ATTR &= 0x1b;
-									PUT_ATTR |= attr;
+									new_attr = (new_attr & 0x1f) | palbgr[attr - 30];
 								}
 								else if(attr >= 40 && attr <= 47)
 								{
-									attr -= 40;
-									attr = (attr << 6) | ((attr << 3) & 0x20);
-									PUT_ATTR &= 0x1b;
-									PUT_ATTR |= 0x04;	/* リバース */
-									PUT_ATTR |= attr;
+									new_attr = (new_attr & 0x1f) | palbgr[attr - 40] | 4;
+								}
+								else
+								{
+									/* falldown */
+									new_attr = clr_attr;
 								}
 							}
+							PUT_ATTR = new_attr;
 						}
 						break;
 
