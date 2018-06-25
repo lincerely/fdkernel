@@ -921,12 +921,7 @@ STATIC VOID InitPC98(VOID)
 #endif
   *(UBYTE FAR *)MK_FP(0x0060, 0x0031) = *(UBYTE FAR *)MK_FP(0, 0x0401);
 
-  *(UBYTE FAR *)MK_FP(0x0060, 0x0068) = *(UBYTE FAR *)MK_FP(0xa000, 0x3fe2);  /* MEM SW1 */
-  *(UBYTE FAR *)MK_FP(0x0060, 0x0069) = *(UBYTE FAR *)MK_FP(0xa000, 0x3fe6);  /* MEM SW2 */
-  *(UBYTE FAR *)MK_FP(0x0060, 0x006a) = *(UBYTE FAR *)MK_FP(0xa000, 0x3fea);  /* MEM SW3 */
-  *(UBYTE FAR *)MK_FP(0x0060, 0x006b) = *(UBYTE FAR *)MK_FP(0xa000, 0x3fee);  /* MEM SW4 */
-  *(UBYTE FAR *)MK_FP(0x0060, 0x008d) = *(UBYTE FAR *)MK_FP(0xa000, 0x3ff2);  /* MEM SW5 */
-  *(UBYTE FAR *)MK_FP(0x0060, 0x008e) = *(UBYTE FAR *)MK_FP(0xa000, 0x3ff6);  /* MEM SW6 */
+  /* copy MEMSW1-6 into IO.SYS ... init_crt (in console.asm) */
 }
 #endif
 

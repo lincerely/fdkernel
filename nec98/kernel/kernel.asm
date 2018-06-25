@@ -279,6 +279,7 @@ segment INIT_TEXT
 kernel_start:
 
 %ifdef NEC98
+                cld
                 call    init_crt
 %endif
 %ifdef IBMPC

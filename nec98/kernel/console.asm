@@ -461,25 +461,58 @@ init_crt:
 		mov	ah, 0bh
 		int	18h
 		test	al, 1
+		mov	ax, 0a000h	; (_text_vram_segment)
 		jz	.l2
 		mov	byte [_scroll_bottom], 20 - 1
-		mov	byte [_crt_line], 0
+		mov	byte [_crt_line], al		; 0 (20rows)
 	.l2:
+		push	si
+		push	ds
+		mov	es, ax		; (_text_vram_segment)
+		push	ds		; xchg ds, es
+		push	es
+		pop	ds
+		pop	es
+		mov	si, 3fe2h
+		mov	di, 68h
+		movsb			; MEM SW1 (A000:3FE2) -> 0060:0068
+		add	si, byte 3
+		movsb			; MEM SW2 (A000:3FE6) -> 0060:0069
+		add	si, byte 3
+		lodsb			; MEM SW3 (A000:3FEA)
+		stosb			; -> 0060:006A
+		add	si, byte 3
+		movsb			; MEM SW4 (A000:3FEE) -> 0060:006B
+		add	si, byte 3
+		test	al, 40h		; check MEMSW3 bit6 (1:Green Monitor Compatible)
+		lodsb			; MEM SW5 (A000:3FF2)
+		mov	ah, byte [si + 3]	; MEM SW6 (A000:3FF6)
+		pop	ds
+		mov	word [008dh], ax	; -> 0060:008D, 008E
+		jz	.l3
+		mov	al, 81h
+		mov	[_clear_attr], al
+		mov	[_put_attr], al
+	.l3:
 
-		mov	bx, .init_str
+		mov	si, .init_str
 	.loop3:
-		mov	al, [cs:bx]
+		cs lodsb
 		test	al, al
 		jz	.end
 		pushf
 ;		call	far _int29_handler
 		call	far reloc_call_int29_handler
-		inc	bx
 		jmp	short .loop3
 	.end:
+		pop	si
 		ret
 
-.init_str	db	1bh, '[>1l', 0
+.init_str	db	1bh, '[>1l'
+	%ifndef INHERIT_CURSOR_POSITION
+		db	1ah
+	%endif
+		db	0
 
 segment HMA_TEXT
 
@@ -962,8 +995,8 @@ _clear_crt:
 		mov	bp, sp
 		push	ds
 
-		mov	ax, 60h
-		mov	ds, ax
+		mov	dx, 60h
+		mov	ds, dx
 		xor	dh, dh
 		mov	dl, [_clear_char]
 		mov	cl, [_clear_attr]
