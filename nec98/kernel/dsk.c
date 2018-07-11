@@ -652,7 +652,11 @@ STATIC WORD getbpb(ddt * pddt)
   */
 
   /* check extended boot record */
+#ifdef WITHFAT32
+  if (!(DiskTransferBuffer[0x26] == 0x29 || (DiskTransferBuffer[0x42] == 0x29 && pbpbarray->bpb_ndirent == 0 && pbpbarray->bpb_nsize == 0)))
+#else
   if (DiskTransferBuffer[0x26] != 0x29)
+#endif
   {
     UBYTE b0, b1, b2;
     b0 = DiskTransferBuffer[0];
