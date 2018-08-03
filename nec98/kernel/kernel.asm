@@ -86,7 +86,7 @@ BootHarddiskSeconds         db 0        ;
 ; The following VERSION resource must be keep in sync with VERSION.H
 Version_OemID               db 0xFD     ; OEM_ID
 Version_Major               db 2
-Version_Revision            dw 41       ; REVISION_SEQ
+Version_Revision            dw 42       ; REVISION_SEQ
 Version_Release             dw 1        ; 0=release build, >0=svn#
 
 configend:
