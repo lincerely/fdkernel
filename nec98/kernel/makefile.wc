@@ -32,7 +32,7 @@ inthndlr.obj
 OBJS5=ioctl.obj memmgr.obj task.obj newstuff.obj nls.obj network.obj
 OBJS6=prf.obj misc.obj strings.obj syspack.obj lfnapi.obj iasmsupt.obj memdisk.obj
 OBJS7=main.obj config.obj initoem.obj inithma.obj dyninit.obj iprf.obj
-OBJS8=initdisk.obj initclk.obj cpu.obj
+OBJS8=initdisk.obj initclk.obj cpu.obj int29dc.obj
 OBJS=$(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(OBJS5) $(OBJS6) $(OBJS7) $(OBJS8)
 
 TARGET_LNK = $(TARGET).rsp
@@ -177,7 +177,7 @@ fattab.obj: $(KSRCD)fattab.c      $(HEADERS) $(TARGET_LNK)
 fcbfns.obj: $(KSRCD)fcbfns.c      $(HEADERS) $(TARGET_LNK)  
 	$(COMPILECC)
 
-inthndlr.obj: $(UKSRCD)inthndlr.c  $(HEADERS) $(TARGET_LNK)  
+inthndlr.obj: $(KSRCD)inthndlr.c  $(HEADERS) $(TARGET_LNK)  
 	$(COMPILECC)
 
 ioctl.obj: $(KSRCD)ioctl.c        $(HEADERS) $(TARGET_LNK)  
@@ -217,6 +217,9 @@ systime.obj: $(KSRCD)systime.c  $(HEADERS) $(TARGET_LNK)
 	$(COMPILECC)
 
 task.obj: $(KSRCD)task.c        $(HEADERS) $(TARGET_LNK)
+	$(COMPILECC)
+
+int29dc.obj: $(UKSRCD)int29dc.c  $(HEADERS) $(TARGET_LNK)  
 	$(COMPILECC)
 
 # now the funny stuff :-)
