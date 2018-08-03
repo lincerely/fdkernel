@@ -732,7 +732,11 @@ dispatch:
           lr.BH = OEM_ID;
       lr.AL = os_setver_major;
       lr.AH = os_setver_minor;
+#ifdef NO_REVISION
+      lr.BL = 0;
+#else
       lr.BL = REVISION_SEQ;
+#endif
       lr.CX = 0; /* do not set this to a serial number!
                     32RTM won't like non-zero values   */
 
