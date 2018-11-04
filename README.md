@@ -5,7 +5,7 @@ http://bauxite.sakura.ne.jp/software/dos/freedos.htm#fdkernel
 https://github.com/lpproj/fdkernel  
 (branch: nec98test)
 
-This is a fork of [FreeDOS development kernel](https://github.com/PerditionC/fdkernel/), intended to handle correctly double-byte character set (DBCS) like Japanese:
+This is a fork of [FreeDOS development kernel](https://github.com/FDOS/kernel), intended to handle correctly double-byte character set (DBCS) like Japanese:
 
 * handle DBCS pathname on file manipulation (create, open, find, rename and so on)
 * handle DBCS characters on input/output for character devices (not implemented yet)
