@@ -31,21 +31,21 @@
                 %include "segs.inc"
                 %include "stacks.inc"
 
-                extern   ConTable:wrt LGROUP
+                extern   ConTable
 %ifndef NEC98
 ; IBMPC 
-                extern   LptTable:wrt LGROUP
-                extern   ComTable:wrt LGROUP
-                extern   uPrtNo:wrt LGROUP
+                extern   LptTable
+                extern   ComTable
+                extern   uPrtNo
 %endif
-                extern   CommonNdRdExit:wrt LGROUP
-;!!                extern   _NumFloppies:wrt DGROUP
-                extern   blk_stk_top:wrt DGROUP
-                extern   clk_stk_top:wrt DGROUP
+                extern   CommonNdRdExit
+;!!                extern   _NumFloppies
+                extern   blk_stk_top
+                extern   clk_stk_top
                 extern   _reloc_call_blk_driver
                 extern   _reloc_call_clk_driver
 
-                extern   _TEXT_DGROUP:wrt LGROUP                
+                extern   _TEXT_DGROUP
 
 ;---------------------------------------------------
 ;
@@ -634,12 +634,12 @@ GetUnitNum:
 blk_driver_params:
                    dw  blk_stk_top
                    dw  _reloc_call_blk_driver
-                   dw  seg _reloc_call_blk_driver
+                   dw  DGROUP
 
 clk_driver_params:
                    dw  clk_stk_top
                    dw  _reloc_call_clk_driver
-                   dw  seg _reloc_call_clk_driver
+                   dw  DGROUP
 
                 ; clock device interrupt
 clk_entry:
