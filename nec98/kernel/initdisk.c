@@ -1562,7 +1562,33 @@ PartitionsField ProcessDisk(int scanType, unsigned drive, PartitionsField Partit
   }
 
 #if defined(NEC98)
-  RelSectorOffset = 1;          /* area info sector */
+  if (Read1LBASector(&driveParam, drive, 0, InitDiskTransferBuffer) != 0)
+  {
+    printf("Error reading MBR on drive %02Xh", drive);
+    return PartitionsToIgnore;
+  }
+
+  if (InitDiskTransferBuffer[4] == 'I' &&
+      InitDiskTransferBuffer[5] == 'P' &&
+      InitDiskTransferBuffer[6] == 'L' &&
+      InitDiskTransferBuffer[7] == '1'
+#if 0
+      && /* for some paranoids... */
+      (
+        (InitDiskTransferBuffer[0xfe] == 0x55 && InitDiskTransferBuffer[0xff] == 0xaa)
+        || (InitDiskTransferBuffer[0x1fe] == 0x55 && InitDiskTransferBuffer[0x1ff] == 0xaa)
+      )
+#endif
+     )
+  {
+    /* Extended Partition (DOS 3+) */
+    RelSectorOffset = 1;          /* area info sector */
+  }
+  else
+  {
+    /* todo: support 'standard' style (DOS 2.x, 256bytes per physical sector) */
+    return PartitionsToIgnore;
+  }
 #else
 /* IBMPC */
   RelSectorOffset = 0;          /* boot sector */
