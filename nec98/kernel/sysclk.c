@@ -53,15 +53,7 @@ STATIC int ByteToBcd(int x)
 
 typedef struct {
   UBYTE year;
-  struct {
-#ifdef __WATCOMC__
-    UBYTE mday:4;
-    UBYTE month:4;
-#else
-    BITS mday:4;
-    BITS month:4;
-#endif
-  } _;
+  UBYTE month_wday; /* bit7-4:month(1..12) bit3-0:wday(0=Sun,1=Mon..6=Sat) */
   UBYTE day;
   UBYTE hour;
   UBYTE minute;
@@ -89,6 +81,7 @@ WORD ASMCFUNC FAR clk_driver(rqptr rp)
         struct ClockRecord clk;
         CAL_DATA cal;
         unsigned Year;
+        UBYTE Month;
 
         if (sizeof(struct ClockRecord) != rp->r_count)
           return failure(E_LENGTH);
@@ -100,8 +93,12 @@ WORD ASMCFUNC FAR clk_driver(rqptr rp)
           Year += 1900;
         else
           Year += 2000;
+        Month = cal.month_wday >> 4;
+        /* workaround for broken clock */
+        if (Month < 1 || Month > 12)
+          Month = 1;
 
-        clk.clkDays			= DaysFromYearMonthDay(Year, cal._.month, BcdToByte(cal.day));
+        clk.clkDays			= DaysFromYearMonthDay(Year, Month, BcdToByte(cal.day));
         clk.clkMinutes		= BcdToByte(cal.minute);
         clk.clkHours		= BcdToByte(cal.hour);
         clk.clkHundredths	= 0;
@@ -149,8 +146,7 @@ WORD ASMCFUNC FAR clk_driver(rqptr rp)
         }
 
         cal.year	= ByteToBcd(Year % 100);
-        cal._.mday	= 0;
-        cal._.month	= ByteToBcd(Month);
+        cal.month_wday = Month << 4;
         cal.day		= ByteToBcd(Day);
         cal.hour	= ByteToBcd(clk.clkHours);
         cal.minute	= ByteToBcd(clk.clkMinutes);
