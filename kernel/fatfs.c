@@ -782,7 +782,11 @@ STATIC int clear_dir(f_node_ptr fnp, CLUSTER cluster)
 #endif
     if (bp == NULL)
       return DE_ACCESS;
+#if BIG_SECTOR
+    fmemset(bp->b_buffer, 0, fnp->f_dpb->dpb_secsize);
+#else
     fmemset(bp->b_buffer, 0, BUFFERSIZE);
+#endif
     bp->b_flag |= BFR_DIRTY | BFR_VALID;
 
     if (idx != 0)

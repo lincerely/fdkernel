@@ -2333,25 +2333,39 @@ STATIC char strcaseequal(const char * d, const char * s)
     that saves some relocation problems    
 */
 
-#define MAXBUFFERS 31   /* must be less than 64K, i guess */
-#define MINBUFFERS 4
 STATIC void config_init_buffers(int wantedbuffers)
 {
-  struct buffer FAR *pbuffer;
   unsigned buffers = 0;
+  unsigned maxbuffers = 99;
+  unsigned buffersize;
+  UBYTE FAR *pbuffer;
+#if BIG_SECTOR
+  unsigned maxsecsize = LoL->maxsecsize;
+
+  if (maxsecsize < BUFFERSIZE)
+    maxsecsize = BUFFERSIZE;
+  if (maxsecsize > 8192)
+    maxsecsize = 8192;
+  LoL->maxsecsize = maxsecsize;
+  buffersize = sizeof(struct buffer) - BUFFERSIZE + maxsecsize;
+#else
+
+  buffersize = sizeof(struct buffer);
+#endif
 
   /* fill HMA with buffers if BUFFERS count >=0 and DOS in HMA        */
   if (wantedbuffers < 0)
     wantedbuffers = -wantedbuffers;
   else if (HMAState == HMA_DONE)
-    buffers = (0xfff0 - HMAFree) / sizeof(struct buffer);
+    buffers = (0xfff0 - HMAFree) / buffersize;
 
-  if (wantedbuffers < MINBUFFERS)        /* min 6 buffers                     */
-    wantedbuffers = MINBUFFERS;
-  if (wantedbuffers > MAXBUFFERS)        /* max 99 buffers                    */
+  maxbuffers = 0xfff0U / buffersize;    /* to avoid size_t overflow */
+  if (wantedbuffers < 6)         /* min 6 buffers                     */
+    wantedbuffers = 6;
+  if (wantedbuffers > maxbuffers)
   {
-    printf("BUFFERS=%u not supported, reducing to %u\n", wantedbuffers, MAXBUFFERS);
-    wantedbuffers = MAXBUFFERS;
+    printf("BUFFERS=%u not supported, reducing to %u\n", wantedbuffers, maxbuffers);
+    wantedbuffers = maxbuffers;
   }
   if (wantedbuffers > buffers)   /* more specified than available -> get em */
     buffers = wantedbuffers;
@@ -2359,7 +2373,7 @@ STATIC void config_init_buffers(int wantedbuffers)
   LoL->nbuffers = buffers;
   LoL->inforecptr = &LoL->firstbuf;
   {
-    size_t bytes = sizeof(struct buffer) * buffers;
+    size_t bytes = buffersize * buffers;
     pbuffer = HMAalloc(bytes);
 
     if (pbuffer == NULL)
@@ -2372,28 +2386,28 @@ STATIC void config_init_buffers(int wantedbuffers)
     {
       LoL->bufloc = LOC_HMA;
       /* space in HMA beyond requested buffers available as user space */
-      firstAvailableBuf = pbuffer + wantedbuffers;
+      firstAvailableBuf = (struct buffer FAR *)(pbuffer + buffersize * wantedbuffers);
     }
   }
   LoL->deblock_buf = DiskTransferBuffer;
-  LoL->firstbuf = pbuffer;
+  LoL->firstbuf = (struct buffer FAR *)pbuffer;
 
-  DebugPrintf(("init_buffers (size %u) at", sizeof(struct buffer)));
+  DebugPrintf(("init_buffers (size %u) at", buffersize));
   DebugPrintf((" (%p)", LoL->firstbuf));
 
   buffers--;
-  pbuffer->b_prev = FP_OFF(pbuffer + buffers);
+  ((struct buffer FAR *)pbuffer)->b_prev = FP_OFF(pbuffer + (buffersize * buffers));
   {
     int i = buffers;
     do
     {
-      pbuffer->b_next = FP_OFF(pbuffer + 1);
-      pbuffer++;
-      pbuffer->b_prev = FP_OFF(pbuffer - 1);
+      ((struct buffer FAR *)pbuffer)->b_next = FP_OFF(pbuffer + buffersize);
+      pbuffer += buffersize;
+      ((struct buffer FAR *)pbuffer)->b_prev = FP_OFF(pbuffer - buffersize);
     }
     while (--i);
   }
-  pbuffer->b_next = FP_OFF(pbuffer - buffers);
+  ((struct buffer FAR *)pbuffer)->b_next = FP_OFF(pbuffer - (buffersize * buffers));
 
     /* now, we can have quite some buffers in HMA
        -- up to 50 for KE38616.
@@ -2407,7 +2421,7 @@ STATIC void config_init_buffers(int wantedbuffers)
   {
     buffers++;
     printf("Kernel: allocated %d Diskbuffers = %u Bytes in HMA\n",
-           buffers, buffers * sizeof(struct buffer));
+           buffers, buffers * buffersize);
   }
 }
 

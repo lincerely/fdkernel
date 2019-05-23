@@ -40,3 +40,11 @@
 #define LBA_CYLINDER_MAX  1023UL
 #endif
 
+#ifndef BIG_SECTOR
+# if (MAX_SEC_SIZE) > 512
+#  define BIG_SECTOR (1)
+# else
+#  define BIG_SECTOR (0)
+# endif
+#endif
+
