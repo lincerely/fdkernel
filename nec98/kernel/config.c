@@ -269,7 +269,7 @@ STATIC int LoadCountryInfoHardCoded(COUNT ctryCode);
 STATIC void umb_init(void);
 
 void HMAconfig(int finalize);
-STATIC void config_init_buffers(int anzBuffers);     /* from BLOCKIO.C */
+STATIC void config_init_buffers(int anzBuffers, unsigned maxsecsize);     /* from BLOCKIO.C */
 
 #ifdef I86
 STATIC VOID FAR * AlignParagraph(VOID FAR * lpPtr);
@@ -390,7 +390,7 @@ void PreConfig(void)
      KernelAlloc(sizeof(sftheader)
      + Config.cfgFiles * sizeof(sft)); */
 
-  config_init_buffers(Config.cfgBuffers);
+  config_init_buffers(Config.cfgBuffers, MAX_SEC_SIZE);
 
   LoL->CDSp = KernelAlloc(sizeof(struct cds) * LoL->lastdrive, 'L', 0);
 
@@ -490,7 +490,7 @@ void PostConfig(void)
   /* printf("DMA scratchpad allocated at 0x%p\n", dma_scratch); */
 #endif
 
-  config_init_buffers(Config.cfgBuffers);
+  config_init_buffers(Config.cfgBuffers, LoL->maxsecsize);
 
 /* LoL->sfthead = (sfttbl FAR *)&basesft; */
   /* LoL->FCBp = (sfttbl FAR *)&FcbSft; */
@@ -2333,23 +2333,17 @@ STATIC char strcaseequal(const char * d, const char * s)
     that saves some relocation problems    
 */
 
-STATIC void config_init_buffers(int wantedbuffers)
+STATIC void config_init_buffers(int wantedbuffers, unsigned maxsecsize)
 {
   unsigned buffers = 0;
   unsigned maxbuffers = 99;
   unsigned buffersize;
   UBYTE FAR *pbuffer;
-#if BIG_SECTOR
-  unsigned maxsecsize = LoL->maxsecsize;
 
-  if (maxsecsize < BUFFERSIZE)
-    maxsecsize = BUFFERSIZE;
-  if (maxsecsize > 8192)
-    maxsecsize = 8192;
-  LoL->maxsecsize = maxsecsize;
+#if BIG_SECTOR
   buffersize = sizeof(struct buffer) - BUFFERSIZE + maxsecsize;
 #else
-
+  (void)maxsecsize;
   buffersize = sizeof(struct buffer);
 #endif
 

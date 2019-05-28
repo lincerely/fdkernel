@@ -563,6 +563,8 @@ VOID CalculateFATData(ddt * pddt, ULONG NumSectors, UBYTE FileSystem)
   if (sec_size != 128 && sec_size != 256 && sec_size != 512 && sec_size != 1024 && sec_size != 2048 && sec_size != 4096) {
     sec_size = FLOPPY_SEC_SIZE;
   }
+  if (maxsecsize < sec_size)
+    maxsecsize = sec_size;
 #endif
   /* FAT related items */
   defbpb->bpb_nfat = NFAT;
