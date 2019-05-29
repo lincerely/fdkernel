@@ -1,4 +1,6 @@
 #  Object Files
+*.O
+*.o
 *.OBJ
 *.obj
 
@@ -23,6 +25,8 @@
 *.bin
 
 # Libraries
+*.A
+*.a
 *.LIB
 *.lib
 
