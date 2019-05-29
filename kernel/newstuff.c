@@ -504,7 +504,7 @@ COUNT truename(const char FAR * src, char * dest, COUNT mode)
        MS DOS preserves a trailing '\\', so an access to "C:\\DOS\\"
        or "CDS.C\\" fails; in that case the last new segment consists of just
        the \ */
-#if defiened(DBCS)
+#if defined(DBCS)
     pprev = dbcs_Prev(nlsdbcs, dest, p);
     if (*pprev != *rootPos)
 #else
