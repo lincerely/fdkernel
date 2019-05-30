@@ -32,7 +32,7 @@
                 %include "stacks.inc"
                 %include "ludivmul.inc"
 
-%define DUMMY_CON_IN_IOSYS  1
+                %include "nec98cfg.inc"
 
 segment PSP
 
@@ -219,6 +219,10 @@ _esc_seq_cursor_pos db  1bh, '[24;80R'  ; 012ch - 0133h scratchpad for esc[6n re
                 global  _fd98_retract_hd_pending
 _fd98_retract_hd_pending db 0           ; a temporary solution: not compatible with MS-DOS
 
+%endif
+
+%ifdef KEYTBL_IN_IOSYS
+                %include "keytbl98.asm"
 %endif
 
 %ifdef DUMMY_CON_IN_IOSYS

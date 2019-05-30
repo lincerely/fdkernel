@@ -45,8 +45,12 @@ UBYTE int29_esc_buf[128];
 UBYTE int29_esc_cnt			= 0;
 UBYTE int29_esc_equal		= FALSE;
 UBYTE int29_esc_graph		= FALSE;
-extern UBYTE ASM programmable_keys;
-extern struct progkey ASM programmable_key[];
+extern UBYTE FAR ASM programmable_keys;
+extern struct progkey FAR ASM programmable_key[];
+STATIC UBYTE FAR *programmable_key_table(unsigned index)
+{
+  return MK_FP(FP_SEG(&(programmable_key[0])), (UWORD)(programmable_key[index].table));
+}
 
 VOID ASMCFUNC int29_main(UBYTE c);
 
@@ -96,7 +100,7 @@ STATIC UWORD sjis2jis(UWORD c)
   return ((UWORD)h << 8) | l;
 }
 
-STATIC VOID put_func(UBYTE x, UBYTE y, UBYTE *p)
+STATIC VOID put_func(UBYTE x, UBYTE y, UBYTE FAR *p)
 {
   UBYTE cnt = 6;
   UBYTE clear_char = CLEAR_CHAR;
@@ -148,7 +152,7 @@ STATIC VOID put_funcs(void)
   put_crt_wattr(2, y, peekb(0x60, 0x8c), CLEAR_ATTR);
   for(i = 1; i <= 5; i++)
   {
-    put_func(x, y, programmable_key[i + ofs].table);
+    put_func(x, y, programmable_key_table(i + ofs));
     x += 6;
     clear_crt(x++, y);
   }
@@ -156,7 +160,7 @@ STATIC VOID put_funcs(void)
     clear_crt(x, y);
   for(; i <= 10; i++)
   {
-    put_func(x, y, programmable_key[i + ofs].table);
+    put_func(x, y, programmable_key_table(i + ofs));
     x += 6;
     clear_crt(x++, y);
   }
@@ -1109,13 +1113,13 @@ VOID ASMCFUNC int29_main(UBYTE c)
  * (only for NEC PC-98 series and EPSON compatibles)
  */
 
-extern UWORD ASM cnvkey_src[];
-extern UBYTE ASM cnvkey_dest[][16];
+extern UWORD ASM FAR cnvkey_src[];
+extern UBYTE ASM FAR cnvkey_dest[][16];
 
 STATIC VOID set_cnvkey_table(UBYTE index)
 {
-  UBYTE *s;
-  UBYTE *d;
+  UBYTE FAR *s;
+  UBYTE FAR *d;
   UBYTE cnt;
 
   if(index > 0x39)
@@ -1125,9 +1129,10 @@ STATIC VOID set_cnvkey_table(UBYTE index)
     int i;
     for(i = 0x01; i <= 0x39; i++)
       set_cnvkey_table(i);
+    return;
   }
 
-  s = programmable_key[index].table;
+  s = programmable_key_table(index);
   d = cnvkey_dest[index - 1];
   cnt = programmable_key[index].size - 1;
 
@@ -1142,7 +1147,7 @@ STATIC VOID set_cnvkey_table(UBYTE index)
   *d = '\0';
 
   if(index == 0x39)
-    strcpy((char *)cnvkey_dest[0x3a - 1], (char *)cnvkey_dest[0x39 - 1]);
+    fstrcpy((char FAR *)cnvkey_dest[0x3a - 1], (char FAR *)cnvkey_dest[0x39 - 1]);
 }
 
 VOID ASMCFUNC intdc_main(iregs FAR *r)
@@ -1186,18 +1191,19 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
           put_string("\n");
 #endif
           if(r->AL < programmable_keys)
-            fmemcpy(MK_FP(r->DS, r->DX), programmable_key[r->AL].table, programmable_key[r->AL].size);
+            fmemcpy(MK_FP(r->DS, r->DX), programmable_key_table(r->AL), programmable_key[r->AL].size);
           else if (r->AL == 0xff)
           {
             /* workaround: */
             UBYTE FAR *p = MK_FP(r->DS, r->DX);
+            UBYTE FAR *pkt0 = programmable_key_table(0);
             fmemset(p, 0, 0x0312);
             /* copy f1~f10 */
-            fmemcpy(p, programmable_key[0].table, 10 * 16);
+            fmemcpy(p, pkt0, 10 * 16);
             /* copy shift+f1~f10 */
-            fmemcpy(p + 0x0f0, programmable_key[0].table + 10 * 16, 10 * 16);
+            fmemcpy(p + 0x0f0, pkt0 + 10 * 16, 10 * 16);
             /* copy rollup, rolldown, ins, del, up, left, right, down, home, help, clr */
-            fmemcpy(p + 0x1e0, programmable_key[0].table + 20 * 16, 11 * 6);
+            fmemcpy(p + 0x1e0, pkt0 + 20 * 16, 11 * 6);
             /* ... todo: and other keys */
           }
           return;
@@ -1226,17 +1232,18 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
           put_string("\n");
 #endif
           if(r->AL < programmable_keys)
-            fmemcpy(programmable_key[r->AL].table, MK_FP(r->DS, r->DX), programmable_key[r->AL].size);
+            fmemcpy(programmable_key_table(r->AL), MK_FP(r->DS, r->DX), programmable_key[r->AL].size);
           else if(r->AL == 0xff)
           {
             /* workaround: */
             UBYTE FAR *p = MK_FP(r->DS, r->DX);
+            UBYTE FAR *pkt0 = programmable_key_table(0);
             /* copy f1~f10 */
-            fmemcpy(programmable_key[0].table, p, 10 * 16);
+            fmemcpy(pkt0, p, 10 * 16);
             /* copy shift+f1~f10 */
-            fmemcpy(programmable_key[0].table + 10 * 16, p + 0x0f0, 10 * 16);
+            fmemcpy(pkt0 + 10 * 16, p + 0x0f0, 10 * 16);
             /* copy rollup, rolldown, ins, del, up, left, right, down, home, help, clr */
-            fmemcpy(programmable_key[0].table + 20 * 16, p + 0x1e0, 11 * 6);
+            fmemcpy(pkt0 + 20 * 16, p + 0x1e0, 11 * 6);
             /* ... todo: and other keys */
             set_cnvkey_table(0);
           }
