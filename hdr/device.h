@@ -180,8 +180,13 @@ typedef struct {
 
 #include "dsk.h"
 
-#define LBA_READ         0x4200
-#define LBA_WRITE        0x4300
+#if defined(NEC98)
+# define LBA_READ       0x0600
+# define LBA_WRITE      0x0500
+#else /* #elif defined(IBMPC) */
+# define LBA_READ       0x4200
+# define LBA_WRITE      0x4300
+#endif
 
 struct _bios_LBA_address_packet
                                            /* Used to access a hard disk via LBA */

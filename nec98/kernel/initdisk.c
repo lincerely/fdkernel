@@ -240,7 +240,7 @@ UBYTE Daua2DDs[4] BSS_INIT({0});
 
 #if defined(NEC98)
 /* NEC PC-98x1 (pc98) */
-#define IsLBAPartition(parttyp) (!1)
+# define IsLBAPartition(parttyp) (!0)
 
 #ifdef WITHFAT32
 #define IsFATPartition(parttyp) (((parttyp) & 0x7f) == FAT12      || \
@@ -931,7 +931,7 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
 {
   iregs regs;
 
-  ExtLBAForce = FALSE;
+  ExtLBAForce = TRUE;
   memset(driveParam, 0, sizeof *driveParam);
   if (drive < 0 || drive >= sizeof DauaHDs / sizeof DauaHDs[0])
     goto ErrorReturn;
@@ -961,9 +961,17 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   driveParam->chs.Cylinder = regs.c.x;
   driveParam->sector_size = regs.b.x;
   if (is_daua_sasi(drive))
+  {
+    if (InitKernelConfig.ForceLBA)
+      driveParam->descflags = DF_LBA;
     SasiSectorBytes[drive & 3] = driveParam->sector_size;
+  }
   else if (is_daua_scsi(drive))
+  {
+    if (InitKernelConfig.ForceLBA)
+      driveParam->descflags = DF_LBA;
     ScsiSectorBytes[drive & 7] = driveParam->sector_size;
+  }
 
   if (maxsecsize < driveParam->sector_size)
     maxsecsize = driveParam->sector_size;
@@ -977,12 +985,19 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   }
 #endif
 
+#if defined(NEC98)
+  driveParam->total_sectors =
+      (ULONG)driveParam->chs.Cylinder
+      * driveParam->chs.Head
+      * driveParam->chs.Sector;
+#else
   if (!(driveParam->descflags & DF_LBA))
   {
     driveParam->total_sectors =
         (ULONG)driveParam->chs.Cylinder
         * driveParam->chs.Head * driveParam->chs.Sector;
   }
+#endif
 
   driveParam->driveno = drive;
 
@@ -1448,7 +1463,7 @@ int Read1LBASector_nec98(struct DriveParamS *driveParam, unsigned drive,
     regs.es = FP_SEG(buffer);
 
     init_call_intr(0x1b, &regs);
-    
+
     if ((regs.flags & FLG_CARRY) == 0)
       break;
     BIOS_drive_reset(driveParam->driveno);

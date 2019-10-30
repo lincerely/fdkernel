@@ -66,7 +66,7 @@ UWORD ASMPASCAL floppy_change(UWORD);
 #pragma aux (pascal) fl_diskchanged modify exact [ax]
 #pragma aux (pascal) fl_setdisktype modify exact [ax]
 #pragma aux (pascal) fl_readkey modify exact [ax]
-#pragma aux (pascal) fl_lba_ReadWrite modify exact [ax]
+#pragma aux (pascal) fl_lba_ReadWrite modify exact [ax dx]
 #pragma aux (pascal) floppy_change modify exact [ax]
 WORD ASMPASCAL fl_sense(WORD);
 #pragma aux (pascal) fl_sense modify exact [ax dx]
@@ -92,10 +92,24 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 
 #define NENTRY          26      /* total size of dispatch table */
 
-#define LBA_READ         0x4200
-#define LBA_WRITE        0x4300
+#if defined(LBA_READ)
+# undef LBA_READ
+#endif
+#if defined(LBA_WRITE)
+# undef LBA_WRITE
+#endif
+
+#if defined(NEC98)
+# define LBA_READ         0x0600
+# define LBA_WRITE        0x0500
+UWORD LBA_WRITE_VERIFY = 0x0200;
+# define LBA_VERIFY       0x0100
+#else
+# define LBA_READ         0x4200
+# define LBA_WRITE        0x4300
 UWORD LBA_WRITE_VERIFY = 0x4302;
-#define LBA_VERIFY       0x4400
+# define LBA_VERIFY       0x4400
+#endif
 #define LBA_FORMAT       0xffff /* fake number for FORMAT track
                                    (only for NON-LBA floppies now!) */
 
@@ -1433,6 +1447,10 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 
         dap.block_address_high = 0;     /* clear high part */
         dap.block_address = LBA_address;        /* clear high part */
+#if defined(NEC98)
+        /* count = 1; */
+        *(UWORD *)&(dap.number_of_blocks) = bytes_sector * count;
+#endif
 
         /* Load the registers and call the interrupt. */
 

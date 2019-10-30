@@ -220,7 +220,41 @@ fl_error:
 		global  FL_LBA_READWRITE
 FL_LBA_READWRITE:
 %ifdef NEC98
+		push	bp
+		mov	bp,sp
+		mov	al,[bp+10]	; drive
+		and	al,7fh
+		mov	dl,al
+		and	dl,0f0h
+		jz	.hd		; sasi/ide (DAUA=0x)
+		cmp	dl,20h		; scsi     (DAUA=2x)
+		je	.hd
+.err:
 		mov	ax,40h		; error (Equipment Check)
+		jmp	short .exit
+.hd:
+		mov	ah,[bp+8+1]	; command
+		push	bx
+		push	cx
+		push	si
+		;push	bp
+		push	es
+		les	si,[bp+4]		; dap pointer
+		mov	bx,[es: si+2]		; count
+		mov	cx,[es: si+8]		; lba loword
+		mov	dx,[es: si+10]		; lba hiword
+		les	bp,[es: si+4]		; buffer
+		int	1bh
+		xchg	al,ah
+		sbb	bx,bx			; if cf==0
+		and	ax,bx			; then ax=0
+		pop	es
+		;pop	bp
+		pop	si
+		pop	cx
+		pop	bx
+.exit:
+		pop	bp
 		ret     8
 %else
 		push    bp              ; setup stack frame
