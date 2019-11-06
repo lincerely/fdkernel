@@ -75,7 +75,7 @@ DLASortByDriveNo            db 0        ; sort disks by drive order (see initdis
 InitDiskShowDriveAssignment db 1        ;
 SkipConfigSeconds           db 2        ;
 ForceLBA                    db 0        ;
-GlobalEnableLBAsupport      db 0        ;
+GlobalEnableLBAsupport      db 1        ;
 BootHarddiskSeconds         db 0        ;
 %else
 DLASortByDriveNo            db 0        ; sort disks by drive order
