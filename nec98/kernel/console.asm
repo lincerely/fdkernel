@@ -399,6 +399,7 @@ _nec98_flush_bios_keybuf:
 
 CRT_STS_FLAG	equ	053ch
 
+	extern	_text_vram_segment:wrt PGROUP
 	extern	_scroll_bottom:wrt PGROUP
 	extern	_cursor_view:wrt PGROUP
 	extern	_cursor_x:wrt PGROUP
@@ -462,8 +463,16 @@ init_crt:
 		mov	cx, 0
 	%endif
 
-		mov	ax, 60h
+		xor	ax, ax
 		mov	ds, ax
+		test	byte [0501h], 8
+		mov	al, 60h			; ax = 0060h
+		mov	ds, ax
+		mov	ax, 0a000h		; normal (A000)
+		jz	.set_vram
+		mov	ah, 0e0h		; hireso (E000)
+	.set_vram:
+		mov	[_text_vram_segment], ax
 		mov	ax, cx
 		mov	dl, 80
 		div	dl
@@ -472,14 +481,13 @@ init_crt:
 		mov	ah, 0bh
 		int	18h
 		test	al, 1
-		mov	ax, 0a000h	; (_text_vram_segment)
 		jz	.l2
 		mov	byte [_scroll_bottom], 20 - 1
 		mov	byte [_crt_line], al		; 0 (20rows)
 	.l2:
 		push	si
 		push	ds
-		mov	es, ax		; (_text_vram_segment)
+		mov	es, [_text_vram_segment]
 		push	ds		; xchg ds, es
 		push	es
 		pop	ds
@@ -624,10 +632,14 @@ _crt_scroll_up:
 		dec	dl
 		mul	dl
 		mov	cx, ax	; witdh * (height - 1)
+
 		push	si
 		push	di
 		push	cx
-		mov	ax, 0a000h
+		mov	ax, 2000h
+		add	si, ax
+		add	di, ax
+		mov	ax, [_text_vram_segment]
 		mov	ds, ax
 		mov	es, ax
 		rep	movsw
@@ -635,13 +647,9 @@ _crt_scroll_up:
 		mov	ax, bp
 		xor	ah, ah
 		rep	stosw
-
 		pop	cx
 		pop	di
 		pop	si
-		mov	ax, 0a200h
-		mov	ds, ax
-		mov	es, ax
 		rep	movsw
 		mov	cx, bx	; witdh
 		mov	ax, bp
@@ -729,7 +737,9 @@ crt_internal_rolldown:
 		push	di
 		push	ds
 		push	es
-		mov	ax, 0a000h
+		mov	ax, 0060h
+		mov	ds, ax
+		mov	ax, [_text_vram_segment]
 		mov	ds, ax
 		mov	es, ax
 		mov	dh, ch
@@ -809,7 +819,9 @@ crt_internal_rollup:
 		push	di
 		push	ds
 		push	es
-		mov	ax, 0a000h
+		mov	ax, 0060h
+		mov	ds, ax
+		mov	ax, [_text_vram_segment]
 		mov	ds, ax
 		mov	es, ax
 		cld
@@ -936,31 +948,34 @@ _get_crt_height:
 _put_crt:
 		push	bp
 		mov	bp, sp
+		push	di
 		push	ds
+		push	es
 
-		mov	ax, 0a000h
+		mov	ax, 0060h
 		mov	ds, ax
+		mov	es, [_text_vram_segment]
 	%if 1
 		mov	ax, 80		; todo 40cols mode
 	%else
 		call	_get_crt_width
 	%endif
-		mul	byte [bp + 6]	; y * width
-		xor	bh, bh
-		mov	bl, [bp + 4]	; x
-		add	bx, ax		; y * width + x
-		shl	bx, 1		; (y * width + x) * 2
+		mul	byte [bp + 6]	; ax = y * width
+		mov	di, ax		; di = y * width
+		xor	ah, ah
+		mov	al, [bp + 4]	; ax = x
+		add	di, ax		; di = y * width + x
+		add	di, di		;     (y * width + x) * 2
 		mov	ax, [bp + 8]	; char
-		mov	[bx], ax
+		stosw
+		xor	ah, ah
+		mov	al, [_put_attr]
+		add	di, 1ffeh
+		stosw
 
-		mov	ax, 60h
-		mov	ds, ax
-		mov	dl, [_put_attr]
-		mov	ax, 0a200h
-		mov	ds, ax
-		mov	[bx], dl
-
+		pop	es
 		pop	ds
+		pop	di
 		pop	bp
 		ret
 
@@ -969,33 +984,35 @@ _put_crt:
 _put_crt_wattr:
 		push	bp
 		mov	bp, sp
+		push	di
 		push	ds
+		push	es
 
-		mov	ax, 0a000h
+		mov	ax, 0060h
 		mov	ds, ax
+		mov	es, [_text_vram_segment]
 	%if 1
 		mov	ax, 80		; todo: 40cols mode
 	%else
 		call	_get_crt_width
 	%endif
 		mul	byte [bp + 6]	; y * width
-		xor	bh, bh
-		mov	bl, [bp + 4]	; x
-		add	bx, ax		; y * width + x
-		shl	bx, 1		; (y * width + x) * 2
+		mov	di, ax
+		xor	ah, ah
+		mov	al, [bp + 4]	; x
+		add	di, ax		; y * width + x
+		add	di, di		; (y * width + x) * 2
 		mov	ax, [bp + 8]	; char
-		mov	[bx], ax
+		stosw
 
-		mov	ax, 60h
-		mov	ds, ax
-		mov	dl, [_put_attr]
-		mov	dh, [bp + 0ah]	; attr
-		mov	ax, 0a200h
-		mov	ds, ax
-		mov	[bx], dl
-		or	[bx], dh
+		mov	al, [_put_attr]
+		or	al, [bp + 0ah]	; attr
+		add	di, 1ffeh
+		stosb
 
+		pop	es
 		pop	ds
+		pop	di
 		pop	bp
 		ret
 
@@ -1008,17 +1025,16 @@ _clear_crt:
 
 		mov	dx, 60h
 		mov	ds, dx
-		xor	dh, dh
+		;xor	dh, dh
 		mov	dl, [_clear_char]
 		mov	cl, [_clear_attr]
 
-		mov	ax, 0a000h
-		mov	ds, ax
 	%if 1
 		mov	ax, 80		; todo: 40cols mode
 	%else
 		call	_get_crt_width
 	%endif
+		mov	ds, [_text_vram_segment]
 		mul	byte [bp + 6]	; y * width
 		xor	bh, bh
 		mov	bl, [bp + 4]	; x
@@ -1026,9 +1042,7 @@ _clear_crt:
 		shl	bx, 1		; (y * width + x) * 2
 		mov	[bx], dx
 
-		mov	ax, 0a200h
-		mov	ds, ax
-		mov	[bx], cl
+		mov	[bx + 2000h], cl
 
 		pop	ds
 		pop	bp
@@ -1045,18 +1059,15 @@ _clear_crt_all:
 		mov	es, ax
 		mov	bl, [es:_clear_char]
 		mov	bh, [es:_clear_attr]
+		mov	es, [es: _text_vram_segment]
 
-		mov	ax, 0a000h
-		mov	es, ax
 		xor	di, di
 		mov	cx, 1000h / 2
 		xor	ah, ah
 		mov	al, bl
 		rep	stosw
 
-		mov	ax, 0a200h
-		mov	es, ax
-		xor	di, di
+		mov	di, 2000h
 		mov	cx, 1000h / 2
 		xor	ah, ah
 		mov	al, bh
