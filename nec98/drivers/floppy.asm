@@ -29,6 +29,7 @@
 ;
 
 %include "../kernel/segs.inc"
+%include "../hdr/stacks.inc"
 segment HMA_TEXT
 
 
@@ -36,6 +37,7 @@ segment HMA_TEXT
 
 %ifdef NEC98
 ; WORD ASMPASCAL fl_sense(WORD drive);
+; modify [ax dx]
 		global	FL_SENSE
 FL_SENSE:
 		pop	dx		; return address
@@ -43,9 +45,35 @@ FL_SENSE:
 		push	dx		; restore address
 		mov	ah, 04h
 		int	1bh
-		xchg	al,ah		; result = AL
-		sbb	ah,ah		; ah = non zero if error
+		mov	al, ah		; ax = result
+		sbb	ah, ah		;      FF??h if error
+		and	al, ah		;      0000h if not error
 		ret
+
+; WORD ASMPASCAL fl_readid(WORD drive, UBYTE FAR *info)
+; modify [ax bx cx dx]
+		global	FL_READID
+FL_READID:
+		push	bp
+		mov	bp, sp
+arg drive,{info,4}
+		mov	al, [.drive]
+		mov	ah, 4ah
+		xor	cx, cx
+		xor	dx, dx
+		int	1bh
+		mov	al, ah
+		jc	.exit
+		push	ds
+		lds	bx, [.info]
+		mov	[bx], cx
+		mov	[bx + 2], dx
+		pop	ds
+		mov	al, 0
+	.exit:
+		sbb	ah, ah
+		pop	bp
+		ret	6
 %endif
 ;
 ; BOOL ASMPASCAL fl_reset(WORD drive);
@@ -125,6 +153,7 @@ fl_dc:	cbw			; extend AL into AX, AX={1,0,-1}
 		global	FL_FORMAT
 FL_FORMAT:
 %ifdef NEC98
+; modify [ax bx cx dx es] (fl_common)
 		mov	ax,40h		; error (Equipment Check)
 		ret	14
 %else
@@ -161,10 +190,9 @@ FL_WRITE:
 fl_common:                
                 push    bp              ; setup stack frame
                 mov     bp,sp
+arg drive, head, track, sector, count, {buffer,4}
 %ifdef NEC98
-		push	es
-
-		mov	al,[bp+10h]	; DA/UA
+		mov	al,[.drive]	; DA/UA
 		push ax
 		and al, 1ch	; FD? 
 		cmp al, 10h
@@ -172,20 +200,19 @@ fl_common:
 		jne .fl_common_hd
 		or ah, 50h				; for FD: MFM, seek
 	.fl_common_hd:
-		mov	bx,[bp+08h]	; count of sectors to read/write/...
-		mov	cx,[bp+0ch]	; cylinder number
-		mov	dh,[bp+0eh]	; head number
-		mov	dl,[bp+0ah]	; sector number
+		mov	bx,[.count]	; count of sectors to read/write/...
+		mov	cx,[.track]	; cylinder number
+		mov	dh,[.head]	; head number
+		mov	dl,[.sector]	; sector number
   %if 0
 		dec	dl		; 0 base
   %endif
-		les	bp,[bp+04h]	; Load 32 bit buffer ptr into ES:BP
+		les	bp,[.buffer]	; Load 32 bit buffer ptr into ES:BP
 
 		int	1bh		; process sectors
-		pop	es
 %else
 
-                mov     cx,[bp+0Ch]     ; cylinder number
+                mov     cx,[.track]     ; cylinder number
 
                 mov     al,1            ; this should be an error code                     
                 cmp     ch,3            ; this code can't write above 3FFh=1023
@@ -194,13 +221,13 @@ fl_common:
                 xchg    ch,cl           ; ch=low 8 bits of cyl number
                 ror     cl,1            ; bits 8-9 of cylinder number...
                 ror     cl,1            ; ...to bits 6-7 in CL
-                or      cl,[bp+0Ah]	; or in the sector number (bits 0-5)
+                or      cl,[.sector]	; or in the sector number (bits 0-5)
 
-                mov     al,[bp+08h]     ; count of sectors to read/write/...
-                les     bx,[bp+04h]     ; Load 32 bit buffer ptr into ES:BX
+                mov     al,[.count]     ; count of sectors to read/write/...
+                les     bx,[.buffer]    ; Load 32 bit buffer ptr into ES:BX
 
-                mov     dl,[bp+10h]     ; drive (if or'ed 80h its a hard drive)
-                mov     dh,[bp+0Eh]     ; get the head number
+                mov     dl,[.drive]     ; drive (if or'ed 80h its a hard drive)
+                mov     dh,[.head]      ; get the head number
 
                 int     13h             ; process sectors
 %endif
@@ -229,9 +256,10 @@ FL_LBA_READWRITE:
 		push    ds
 		push    si              ; wasn't in kernel < KE2024Bo6!!
 
-		mov     dl,[bp+10]      ; drive (if or'ed with 80h a hard drive)
-		mov     ax,[bp+8]       ; get the command
-		lds     si,[bp+4]       ; get far dap pointer
+arg drive, mode, {dap_p,4}
+		mov     dl,[.drive]     ; drive (if or'ed with 80h a hard drive)
+		mov     ax,[.mode]      ; get the command
+		lds     si,[.dap_p]     ; get far dap pointer
 		int     13h             ; read from/write to drive
 		
 		pop     si

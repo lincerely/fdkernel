@@ -37,7 +37,6 @@
 # define is_daua_fd(d)  (((d) & 0x1c) == 0x10)
 # define is_daua_2hd(d) (((d) & 0xfc) == 0x90)
 # define is_daua_2dd(d) (((d) & 0xfc) == 0x70)
-extern COUNT ASMPASCAL fl_read(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 extern UWORD FAR SasiSectorBytes[4];  /* very important FAR */
 extern UWORD FAR ScsiSectorBytes[8];  /* very important FAR */
 extern WORD FAR maxsecsize;           /* very important FAR */
@@ -464,6 +463,7 @@ COUNT init_getdriveparm(UBYTE drive, bpb * pbpbarray)
 */
 
 #if defined(NEC98)
+int Read1CHSSector(struct DriveParamS *driveParam, unsigned drive, UWORD cylinder, UWORD head, UWORD sector, void * buffer);
 #define init_LBA_to_CHS_nec98  init_LBA_to_CHS
 #define printCHS_nec98  printCHS
 #define CHS_to_LBA_nec98  CHS_to_LBA
@@ -799,7 +799,11 @@ void DosDefinePartition(struct DriveParamS *driveParam,
     phys_bytes_sector = ScsiSectorBytes[driveParam->driveno & 0x7];
   {
   /* get actual sector size (for block device, not always same for BIOS) from the disk */
+#if 1
+    UWORD rc = Read1CHSSector(driveParam, driveParam->driveno, pEntry->Begin.Cylinder, pEntry->Begin.Head, pEntry->Begin.Sector, InitDiskTransferBuffer);
+#else
     UWORD rc = fl_read(driveParam->driveno, pEntry->Begin.Head, pEntry->Begin.Cylinder, pEntry->Begin.Sector, 1024 /* 512 MAX_SEC_SIZE */, (UBYTE FAR *) InitDiskTransferBuffer);
+#endif
     if (rc == 0) rc = *((UWORD FAR *)&InitDiskTransferBuffer[BT_BPB]);
     pddt->ddt_defbpb.bpb_nbyte = (rc == 256 || rc == 512 || rc == 1024 || rc == 2048 || rc == 4096) ? rc : 1024; /* todo: set proper value for BIOS in default */ 
   }
@@ -1455,6 +1459,15 @@ int Read1LBASector_nec98(struct DriveParamS *driveParam, unsigned drive,
   }
 
   return regs.flags & FLG_CARRY ? 1 : 0;
+}
+int Read1CHSSector(struct DriveParamS *driveParam, unsigned drive,
+                   UWORD cylinder, UWORD head, UWORD sector, void * buffer)
+{
+  struct CHS chs;
+  chs.Cylinder = cylinder;
+  chs.Head = head;
+  chs.Sector = sector;
+  return Read1LBASector(driveParam, drive, CHS_to_LBA(&chs, driveParam), buffer);
 }
 #elif defined(IBMPC)
 /* IBMPC */

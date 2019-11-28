@@ -60,16 +60,20 @@ extern COUNT ASMPASCAL fl_lba_ReadWrite(BYTE drive, WORD mode,
                                        struct _bios_LBA_address_packet FAR
                                        * dap_p);
 UWORD ASMPASCAL floppy_change(UWORD);
+#if defined(NEC98)
+WORD ASMPASCAL fl_sense(WORD);
+WORD ASMPASCAL fl_readid(WORD, UBYTE FAR *);
+#endif
+
 #ifdef __WATCOMC__
 # if defined(NEC98)
 #pragma aux (pascal) fl_reset modify exact [ax dx]
 #pragma aux (pascal) fl_diskchanged modify exact [ax]
 #pragma aux (pascal) fl_setdisktype modify exact [ax]
 #pragma aux (pascal) fl_readkey modify exact [ax]
-#pragma aux (pascal) fl_lba_ReadWrite modify exact [ax]
 #pragma aux (pascal) floppy_change modify exact [ax]
-WORD ASMPASCAL fl_sense(WORD);
 #pragma aux (pascal) fl_sense modify exact [ax dx]
+#pragma aux (pascal) fl_readid modify exact [ax bx cx dx]
 # else
 /* IBMPC */
 #pragma aux (pascal) fl_reset modify exact [ax dx]
@@ -465,60 +469,6 @@ struct read_id_info {
 }
 */
 
-STATIC WORD fl_readid_nec98(UBYTE daua, UBYTE *idinfo)
-{
-  WORD rc = 0;
-  UBYTE idN = 0, idC = 0, idH = 0, idR = 0;
-  /* read ID from a disk (quick check for size of sector) */
-  /* todo: move to driver/floppy.asm */
-  _asm {
-    push cx
-    push dx
-    mov ah, 4ah
-    mov al, daua
-    xor cx, cx
-    xor dx, dx
-    int 1bh
-    mov [idC], cl
-    mov [idN], ch
-    mov [idR], dl
-    mov [idH], dh
-    sbb dx, dx
-    and ax, dx
-    mov byte ptr [rc], ah
-    pop dx
-    pop cx
-  }
-  if (rc == 0)
-  {
-    idinfo[0] = idC;
-    idinfo[1] = idN;
-    idinfo[2] = idR;
-    idinfo[3] = idH;
-  }
-  
-  return rc;
-}
-
-STATIC WORD fl_sense_nec98(UBYTE daua)
-{
-  /* sense a medium in the drive */
-  /* todo: move to driver/floppy.asm */
-  WORD rc = 0;
-  _asm {
-    push dx
-    mov ah, 04h
-    mov al, [daua]
-    int 1bh
-    sbb dx, dx
-    xor dh, dh
-    and dl, ah
-    mov [rc], dx
-    pop dx
-  }
-  return rc;
-}
-
 STATIC WORD RWzero_nec98(ddt * pddt, UWORD rwmode)
 {
   STATIC UBYTE fmodes_2hd[] = { 0x90, 0x10, 0x30, 0 };
@@ -558,15 +508,15 @@ STATIC WORD RWzero_nec98(ddt * pddt, UWORD rwmode)
   {
     UBYTE idinfo[4];
     da = daua & 0xf0;
-    ret = fl_sense_nec98(daua);
+    ret = fl_sense(daua);
     if (ret != 0)
       continue;
 
-    ret = fl_readid_nec98(daua, &idinfo);
+    ret = fl_readid(daua, &idinfo);
     if (ret >= 0xc0)
     {
       fl_reset(daua);
-      ret = fl_readid_nec98(daua, &idinfo);
+      ret = fl_readid(daua, &idinfo);
     }
     if (ret != 0)
       continue;
