@@ -10,6 +10,7 @@
 
 #include "portab.h"
 #include "globals.h"
+#include "prot_nec.h"
 #include "nls.h"
 
 #if defined(NEC98)

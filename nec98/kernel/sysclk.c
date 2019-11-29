@@ -60,10 +60,12 @@ typedef struct {
   UBYTE second;
 } CAL_DATA;
 
-STATIC int BcdToByte(int x)
+STATIC int BcdToByteInternal(int x)
 {
   return ((x >> 4) & 0xf) * 10 + (x & 0xf);
 }
+
+#define BcdToByte BcdToByteInternal
 
 WORD ASMCFUNC FAR clk_driver(rqptr rp)
 {

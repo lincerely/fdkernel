@@ -143,8 +143,8 @@ HDRS=\
     $(HDRD)fat.h $(HDRD)fcb.h $(HDRD)tail.h $(HDRD)time.h $(HDRD)process.h \
     $(HDRD)dcb.h $(HDRD)sft.h $(HDRD)cds.h $(HDRD)exe.h $(HDRD)fnode.h     \
     $(HDRD)dirmatch.h $(HDRD)file.h $(HDRD)clock.h $(HDRD)kbd.h $(HDRD)error.h  \
-    $(HDRD)version.h $(KSRCD)dyndata.h
-HEADERS=$(HDRS) $(UKSRCD)globals.h $(UKSRCD)proto.h
+    $(HDRD)version.h $(HDRD)nls.h $(KSRCD)dyndata.h
+HEADERS=$(HDRS) $(KSRCD)proto.h $(UKSRCD)globals.h $(UKSRCD)prot_nec.h
 INITHEADERS=$(HDRS) $(UKSRCD)init-mod.h $(KSRCD)init-dat.h
 
 blockio.obj: $(KSRCD)blockio.c    $(HEADERS) $(TARGET_LNK)  
