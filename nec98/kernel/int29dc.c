@@ -48,10 +48,17 @@ UBYTE int29_esc_equal		= FALSE;
 UBYTE int29_esc_graph		= FALSE;
 extern UBYTE FAR ASM programmable_keys;
 extern struct progkey FAR ASM programmable_key[];
+
+
+#if 1
+  /* so effective in reducing size of code? (doubtful) */
+# define programmable_key_table  nec98_programmable_key_table
+#else
 STATIC UBYTE FAR *programmable_key_table(unsigned index)
 {
   return MK_FP(FP_SEG(&(programmable_key[0])), (UWORD)(programmable_key[index].table));
 }
+#endif
 
 VOID ASMCFUNC int29_main(UBYTE c);
 
@@ -424,10 +431,6 @@ STATIC VOID set_graph_state(UBYTE mode_number)
   }
 }
 
-#if 1
-extern VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
-extern VOID FAR ASMCFUNC flush_conin(VOID);
-#endif
 STATIC VOID parse_esc(UBYTE c)
 {
   if(int29_esc_cnt < sizeof(int29_esc_buf))
@@ -810,18 +813,7 @@ STATIC VOID parse_esc(UBYTE c)
               switch(int29_esc_buf[1])
               {
                 case '6':	/* ESC[6n */
-                  {
-                    UBYTE FAR *escr = MK_FP(0x60, 0x012c);
-                    UBYTE x = CURSOR_X + 1;
-                    UBYTE y = CURSOR_Y + 1;
-                    if (x > 99) x = 99;
-                    if (y > 99) y = 99;
-                    escr[2] = '0' + (y/10);
-                    escr[3] = '0' + (y%10);
-                    escr[5] = '0' + (x/10);
-                    escr[6] = '0' + (x%10);
-                    push_cursor_pos_to_conin();
-                  }
+                  nec98_console_esc6n_far();
                   break;
               }
             }
@@ -1117,40 +1109,6 @@ VOID ASMCFUNC int29_main(UBYTE c)
 extern UWORD ASM FAR cnvkey_src[];
 extern UBYTE ASM FAR cnvkey_dest[][16];
 
-STATIC VOID set_cnvkey_table(UBYTE index)
-{
-  UBYTE FAR *s;
-  UBYTE FAR *d;
-  UBYTE cnt;
-
-  if(index > 0x39)
-    return;
-  if(index == 0)
-  {
-    int i;
-    for(i = 0x01; i <= 0x39; i++)
-      set_cnvkey_table(i);
-    return;
-  }
-
-  s = programmable_key_table(index);
-  d = cnvkey_dest[index - 1];
-  cnt = programmable_key[index].size - 1;
-
-  if(cnt == 15 && *s == 0xfe)
-  {
-    s += 6;
-    cnt -= 6;
-  }
-
-  while(cnt-- && *s)
-    *d++ = *s++;
-  *d = '\0';
-
-  if(index == 0x39)
-    fstrcpy((char FAR *)cnvkey_dest[0x3a - 1], (char FAR *)cnvkey_dest[0x39 - 1]);
-}
-
 VOID ASMCFUNC intdc_main(iregs FAR *r)
 {
   switch(r->CL)
@@ -1191,22 +1149,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
           put_unsigned(r->AL, 16, 2);
           put_string("\n");
 #endif
-          if(r->AL < programmable_keys)
-            fmemcpy(MK_FP(r->DS, r->DX), programmable_key_table(r->AL), programmable_key[r->AL].size);
-          else if (r->AL == 0xff)
-          {
-            /* workaround: */
-            UBYTE FAR *p = MK_FP(r->DS, r->DX);
-            UBYTE FAR *pkt0 = programmable_key_table(0);
-            fmemset(p, 0, 0x0312);
-            /* copy f1~f10 */
-            fmemcpy(p, pkt0, 10 * 16);
-            /* copy shift+f1~f10 */
-            fmemcpy(p + 0x0f0, pkt0 + 10 * 16, 10 * 16);
-            /* copy rollup, rolldown, ins, del, up, left, right, down, home, help, clr */
-            fmemcpy(p + 0x1e0, pkt0 + 20 * 16, 11 * 6);
-            /* ... todo: and other keys */
-          }
+          nec98_get_programmable_key(MK_FP(r->DS, r->DX), r->AL);
           return;
 
         case 0x01:  /* data key buffer functions */
@@ -1232,22 +1175,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
           put_unsigned(r->AL, 16, 2);
           put_string("\n");
 #endif
-          if(r->AL < programmable_keys)
-            fmemcpy(programmable_key_table(r->AL), MK_FP(r->DS, r->DX), programmable_key[r->AL].size);
-          else if(r->AL == 0xff)
-          {
-            /* workaround: */
-            UBYTE FAR *p = MK_FP(r->DS, r->DX);
-            UBYTE FAR *pkt0 = programmable_key_table(0);
-            /* copy f1~f10 */
-            fmemcpy(pkt0, p, 10 * 16);
-            /* copy shift+f1~f10 */
-            fmemcpy(pkt0 + 10 * 16, p + 0x0f0, 10 * 16);
-            /* copy rollup, rolldown, ins, del, up, left, right, down, home, help, clr */
-            fmemcpy(pkt0 + 20 * 16, p + 0x1e0, 11 * 6);
-            /* ... todo: and other keys */
-            set_cnvkey_table(0);
-          }
+          nec98_set_programmable_key(MK_FP(r->DS, r->DX), r->AL);
           set_cnvkey_table(r->AL);
           redraw_function();
           return;

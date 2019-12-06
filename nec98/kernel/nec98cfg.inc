@@ -3,9 +3,31 @@
 
 ;-------------------------------
 %define DUMMY_CON_IN_IOSYS  1
-%define KEYTBL_IN_IOSYS 1
 %define BIG_SECTOR 1
 ;-------------------------------
+
+
+%define FAR_CON_DGROUP		PGROUP
+%define FAR_CON_TEXTSEG		PSP
+%define FAR_CON_TGROUP		PGROUP
+
+%define IOCODE_DGROUP PGROUP
+%define IOCODE_TEXTSEG PSP
+%define IOCODE_TGROUP PGROUP
+
+%macro  arg_f 1-*
+	%assign .argloc 6
+	%rep  %0
+		%ifdef PASCAL
+			%rotate -1
+		%endif
+		definearg %1
+		%ifdef STDCALL
+			%rotate 1
+		%endif
+	%endrep
+%endmacro
+
 
 %endif
 

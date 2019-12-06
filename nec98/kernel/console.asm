@@ -29,7 +29,10 @@
 ;
 
                 %include "io.inc"
+                %include "stacks.inc"
                 %include "nec98cfg.inc"
+
+                %include "conseg60.asm"
 
 segment	_IO_FIXED_DATA
 
@@ -62,17 +65,6 @@ seg_0060  dw 0060h
 ; 0060:xxxx
 %define CON_BUF_COUNT 0103h
 %define CON_BUF_HEAD  0104h
-
-%ifdef KEYTBL_IN_IOSYS
-	extern _programmable_keys:wrt PGROUP
-	extern _programmable_key:wrt PGROUP
-	extern _cnvkey_src:wrt PGROUP
-	extern _cnvkey_dest:wrt PGROUP
-  %define KEYTBL_DGROUP PGROUP
-%else
-  %define KEYTBL_DGROUP DGROUP
-%endif
-
 
 ; int 18h ah=1
 ; check keyboard buffer WITHOUT BIOS call
@@ -161,7 +153,7 @@ check_fkey:
     push dx
     push ds
     mov dx, ax
-    mov ax, KEYTBL_DGROUP
+    mov ax, FAR_CON_DGROUP
     mov ds, ax
     mov si, _cnvkey_src
   .lp:
@@ -193,7 +185,7 @@ copy_fkey_to_conbuf:
     push es
     pushf
     mov es, [cs: seg_0060]
-    mov ax, KEYTBL_DGROUP
+    mov ax, FAR_CON_DGROUP
     mov ds, ax
     xor cx, cx
     mov di, 00c0h
@@ -266,7 +258,7 @@ push_fkey:
     push es
     mov es, [cs: seg_0060]
     mov dx, ax
-    mov ax, KEYTBL_DGROUP
+    mov ax, FAR_CON_DGROUP
     mov ds, ax
     mov si, _cnvkey_src
   .lp:
@@ -378,17 +370,6 @@ ConWrite:
     jmp	_IOExit
 
 
-; VOID FAR ASMCFUNC push_cursor_pos_to_conin(VOID);
-    global _push_cursor_pos_to_conin
-_push_cursor_pos_to_conin:
-    push ds
-    mov ax, 0060h
-    mov ds, ax
-    mov word [0104h], 012ch   ; switch keybuff to _esc_seq_cursor_pos
-    mov byte [0103h], 8       ; fixed length (^[yy;xxR)
-    pop ds
-    retf
-
     global _nec98_flush_bios_keybuf
 _nec98_flush_bios_keybuf:
     call flush_bios_keybuf
@@ -399,16 +380,6 @@ _nec98_flush_bios_keybuf:
 
 CRT_STS_FLAG	equ	053ch
 
-	extern	_text_vram_segment:wrt PGROUP
-	extern	_scroll_bottom:wrt PGROUP
-	extern	_cursor_view:wrt PGROUP
-	extern	_cursor_x:wrt PGROUP
-	extern	_cursor_y:wrt PGROUP
-	extern	_clear_char:wrt PGROUP
-	extern	_clear_attr:wrt PGROUP
-	extern	_put_attr:wrt PGROUP
-	extern	_scroll_bottom:wrt PGROUP
-	extern	_crt_line:wrt PGROUP
 ;	extern	_int29_handler
 	extern	reloc_call_int29_handler
 
@@ -535,24 +506,6 @@ init_crt:
 
 segment HMA_TEXT
 
-; UBYTE ASMCFUNC crt_set_mode(UBYTE mode)
-		global	_crt_set_mode
-_crt_set_mode:
-		push bp
-		mov bp, sp
-		mov ah, 0bh
-		int 18h
-		xor ah, ah
-		push ax
-		mov ah, 0ah
-		mov al, byte [bp + 4]
-		int 18h
-		mov ah, 0ch
-		int 18h
-		pop ax
-		pop bp
-		ret
-
 ; VOID ASMCFUNC set_curpos(UBYTE x, UBYTE y)
 		global	_set_curpos
 _set_curpos:
@@ -599,315 +552,6 @@ _update_cursor_view:
 		ret
 
 
-%if 0
-; VOID ASMCFUNC crt_scroll_up(VOID)
-		global	_crt_scroll_up
-_crt_scroll_up:
-		cld
-		push	bp
-		push	si
-		push	di
-		push	ds
-		push	es
-
-		call	_get_crt_height
-		mov	dx, ax
-	%if 1
-		mov	bx, 80
-	%else
-		call	_get_crt_width
-		mov	bx, ax
-	%endif
-
-		mov	ax, 60h
-		mov	ds, ax
-		mov	al, [_clear_char]
-		mov	ah, [_clear_attr]
-		mov	bp, ax
-
-		mov	si, bx
-		shl	si, 1	; width * 2
-		xor	di, di
-		mov	al, bl
-		dec	dl
-		mul	dl
-		mov	cx, ax	; witdh * (height - 1)
-
-		push	si
-		push	di
-		push	cx
-		mov	ax, 2000h
-		add	si, ax
-		add	di, ax
-		mov	ax, [_text_vram_segment]
-		mov	ds, ax
-		mov	es, ax
-		rep	movsw
-		mov	cx, bx	; witdh
-		mov	ax, bp
-		xor	ah, ah
-		rep	stosw
-		pop	cx
-		pop	di
-		pop	si
-		rep	movsw
-		mov	cx, bx	; witdh
-		mov	ax, bp
-		mov	al, ah
-		xor	ah, ah
-		rep	stosw
-
-		pop	es
-		pop	ds
-		pop	di
-		pop	si
-		pop	bp
-		ret
-%endif
-
-
-%if 0
-; VOID ASMCFUNC crt_scroll_down(VOID)
-		global	_crt_scroll_down
-_crt_scroll_down:
-%endif
-
-
-; UBYTE ASMCFUNC crt_rollup(UBYTE linecnt)
-		global	_crt_rollup
-_crt_rollup:
-		push	bp
-		mov	bp, sp
-		push	bx
-		push	cx
-		mov	dl, byte [bp + 4]
-		call	crt_internal_roll_setupregs
-		jc	.end
-		call	crt_internal_rollup
-	.end:
-		pop	cx
-		pop	bx
-		pop	bp
-		ret
-
-; UBYTE ASMCFUNC crt_rolldown(UBYTE linecnt)
-		global	_crt_rolldown
-_crt_rolldown:
-		push	bp
-		mov	bp, sp
-		push	bx
-		push	cx
-		mov	dl, byte [bp + 4]
-		call	crt_internal_roll_setupregs
-		jc	.end
-		call	crt_internal_rolldown
-	.end:
-		pop	cx
-		pop	bx
-		pop	bp
-		ret
-
-crt_internal_roll_setupregs:
-		push	ds
-		mov	ax, 60h
-		mov	ds, ax
-		mov	cl, byte [ds: 0110h]
-		mov	ch, byte [ds: 0112h]
-		mov	bh, byte [ds: 0114h]
-		mov	bl, byte [ds: 0119h]
-		test	dl, dl
-		jnz	.l2
-		mov	dl, 1
-	.l2:
-		pop	ds
-		cmp	ch, cl
-		ret
-
-
-; dl  scroll count
-; cl  scroll area Y0 (0...row-1)
-; ch  scroll area Y1 (0...row-1)
-; bl  fill char
-; bh  fill attr
-;
-; ax dx  break on return
-
-crt_internal_rolldown:
-		push	si
-		push	di
-		push	ds
-		push	es
-		mov	ax, 0060h
-		mov	ds, ax
-		mov	ax, [_text_vram_segment]
-		mov	ds, ax
-		mov	es, ax
-		mov	dh, ch
-		sub	dh, cl
-		jb	.end
-		cmp	dh, dl
-		;jbe	.fill
-		jae	.l2
-		mov	dl, dh
-		inc	dl
-		jmp	short .fill
-	.l2:
-		std
-		mov	al, 160
-		push	ax
-		inc	ch
-		mul	ch
-		dec	ch
-		sub	ax, 2
-		mov	di, ax
-		pop	ax
-		mul	dl
-		mov	si, di
-		sub	si, ax
-		push	cx
-		push	dx
-		push	si
-		push	di
-		mov	al, 80
-		inc	dh
-		sub	dh, dl
-		mul	dh
-		mov	cx, ax
-		rep	movsw
-		pop	di
-		pop	si
-		add	di, 2000h
-		add	si, 2000h
-		mov	cx, ax
-		rep	movsw
-		pop	dx
-		pop	cx
-	.fill:
-		cld
-		push	cx
-		mov	dh, ch
-		sub	dh, dl
-		inc	dh
-		mov	al, 160
-		mul	cl
-		mov	di, ax
-		mov	al, 80
-		mul	dl
-		mov	cx, ax
-		push	cx
-		push	di
-		xor	ax, ax
-		mov	al, bl
-		rep	stosw
-		pop	di
-		pop	cx
-		mov	al, bh
-		mov	ah, bh
-		add	di, 2000h
-		rep	stosw
-		pop	cx
-	.end:
-		pop	es
-		pop	ds
-		pop	di
-		pop	si
-		ret
-
-
-crt_internal_rollup:
-		push	si
-		push	di
-		push	ds
-		push	es
-		mov	ax, 0060h
-		mov	ds, ax
-		mov	ax, [_text_vram_segment]
-		mov	ds, ax
-		mov	es, ax
-		cld
-		mov	dh, ch
-		sub	dh, cl
-		jb	.end
-		cmp	dh, dl
-		;jbe	.fill
-		jae	.l2
-		mov	dl, dh
-		inc	dl
-		jmp	short .fill
-	.l2:
-		mov	al, 160
-		push	ax
-		mul	cl
-		mov	di, ax
-		pop	ax
-		mul	dl
-		mov	si, di
-		add	si, ax
-		push	cx
-		push	dx
-		push	si
-		push	di
-		mov	al, 80
-		inc	dh
-		sub	dh, dl
-		mul	dh
-		mov	cx, ax
-		rep	movsw
-		pop	di
-		pop	si
-		add	di, 2000h
-		add	si, 2000h
-		mov	cx, ax
-		rep	movsw
-		pop	dx
-		pop	cx
-	.fill:
-		push	cx
-		mov	dh, ch
-		sub	dh, dl
-		inc	dh
-		mov	al, 160
-		mul	dh
-		mov	di, ax
-		mov	al, 80
-		mul	dl
-		mov	cx, ax
-		push	cx
-		push	di
-		xor	ax, ax
-		mov	al, bl
-		rep	stosw
-		pop	di
-		pop	cx
-		mov	al, bh
-		mov	ah, bh
-		add	di, 2000h
-		rep	stosw
-		pop	cx
-	.end:
-		pop	es
-		pop	ds
-		pop	di
-		pop	si
-		ret
-
-; VOID ASMCFUNC crt_scroll_up(VOID)
-		global	_crt_scroll_up
-_crt_scroll_up:
-		push	ax
-		push	bx
-		push	dx
-		
-		call	crt_internal_roll_setupregs
-		mov	cl, 0
-		mov	dl, 1
-		call	crt_internal_rollup
-		pop	dx
-		pop	bx
-		pop	ax
-		ret
-
-
 ; UBYTE ASMCFUNC get_crt_width(VOID)
 		global	_get_crt_width
 _get_crt_width:
@@ -915,7 +559,7 @@ _get_crt_width:
 		xor	ax, ax
 		mov	ds, ax
 
-		xor	ah, ah
+		;xor	ah, ah
 		mov	al, [CRT_STS_FLAG]
 		test	al, 2
 		jz	.w80
@@ -935,7 +579,7 @@ _get_crt_height:
 		mov	ax, 60h
 		mov	ds, ax
 
-		xor	ah, ah
+;		xor	ah, ah
 		mov	al, [_scroll_bottom]
 		inc	al
 
@@ -1021,6 +665,9 @@ _put_crt_wattr:
 _clear_crt:
 		push	bp
 		mov	bp, sp
+		push	bx
+		push	cx
+		push	dx
 		push	ds
 
 		mov	dx, 60h
@@ -1045,41 +692,44 @@ _clear_crt:
 		mov	[bx + 2000h], cl
 
 		pop	ds
+		pop	dx
+		pop	cx
+		pop	bx
 		pop	bp
 		ret
 
-; VOID ASMCFUNC clear_crt_all(VOID)
-		global	_clear_crt_all
-_clear_crt_all:
-		cld
-		push	di
-		push	es
 
-		mov	ax, 60h
-		mov	es, ax
-		mov	bl, [es:_clear_char]
-		mov	bh, [es:_clear_attr]
-		mov	es, [es: _text_vram_segment]
+; UBYTE FAR * ASMPASCAL nec98_programmable_key_table(unsigned index)
+		global	NEC98_PROGRAMMABLE_KEY_TABLE
+NEC98_PROGRAMMABLE_KEY_TABLE:
+		pop	dx	; pop return address
+		pop	ax	; index
+		push	cs	; (return address seg)
+		push	dx	; re-push return address
+		jmp	FAR_CON_TGROUP: nec98_programmable_key_table_ax_far
 
-		xor	di, di
-		mov	cx, 1000h / 2
-		xor	ah, ah
-		mov	al, bl
-		rep	stosw
+; VOID ASMPASCAL nec98_set_cnvkey_table(UBYTE index)
+		global NEC98_SET_CNVKEY_TABLE
+NEC98_SET_CNVKEY_TABLE:
+		pop	dx	; pop return address
+		pop	ax	; index
+		push	cs	; (return address seg)
+		push	dx	; re-push return address
+		jmp	FAR_CON_TGROUP: nec98_set_convkey_table_ax_far
 
-		mov	di, 2000h
-		mov	cx, 1000h / 2
-		xor	ah, ah
-		mov	al, bh
-		rep	stosw
+; VOID ASMPASCAL nec98_get_programmable_key(void far *keydata, unsigned keyindex)
+		global NEC98_GET_PROGRAMMABLE_KEY
+NEC98_GET_PROGRAMMABLE_KEY:
+		pop	ax
+		push	cs
+		push	ax
+		jmp	FAR_CON_TGROUP: NEC98_GET_PROGRAMMABLE_KEY_FAR
 
-		pop	es
-		pop	di
-		ret
+; VOID ASMPASCAL nec98_set_programmable_key(const void far *keydata, unsigned keyindex)
+		global NEC98_SET_PROGRAMMABLE_KEY
+NEC98_SET_PROGRAMMABLE_KEY:
+		pop	ax
+		push	cs
+		push	ax
+		jmp	FAR_CON_TGROUP: NEC98_SET_PROGRAMMABLE_KEY_FAR
 
-
-segment	_DATA
-
-%ifndef KEYTBL_IN_IOSYS
-                %include "keytbl98.asm"
-%endif

@@ -221,9 +221,16 @@ _fd98_retract_hd_pending db 0           ; a temporary solution: not compatible w
 
 %endif
 
-%ifdef KEYTBL_IN_IOSYS
-                %include "keytbl98.asm"
-%endif
+; some codes and data in IO.SYS area
+;--------
+%define INCLUDE_CONSEG60
+		align	2
+		global	conseg60_begin
+		global	conseg60_end
+conseg60_begin:
+                %include "conseg60.asm"
+conseg60_end:
+;--------
 
 %ifdef DUMMY_CON_IN_IOSYS
 ; dummy con driver (workaround for some FEP driver(s) - yes, ATOK6 it is)
