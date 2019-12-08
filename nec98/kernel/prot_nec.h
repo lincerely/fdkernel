@@ -41,6 +41,7 @@ VOID ASMCON_FAR  nec98_clear_crt_all_far(VOID);
 #pragma aux get_crt_height modify exact [ax]
 #pragma aux put_crt modify exact [ax]
 #pragma aux put_crt_wattr modify exact [ax]
+#pragma aux set_curpos modify exact [ax dx]
 #pragma aux update_cursor_view modify exact [ax dx]
 
 #pragma aux (pascal) nec98_crt_set_mode_far modify exact [ax]

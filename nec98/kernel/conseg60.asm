@@ -408,7 +408,7 @@ nec98_set_convkey_table_ax_sub:
 
 
 nec98_set_convkey_table_ax_far:
-		callnec98_set_convkey_table_ax_sub
+		call	nec98_set_convkey_table_ax_sub
 		retf
 
 ; VOID ASMPASCAL far nec98_set_programmable_key_far(const void far *keydata, unsigned keyindex)
