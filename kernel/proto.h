@@ -118,6 +118,7 @@ COUNT DosLockUnlock(COUNT hndl, LONG pos, LONG len, COUNT unlock);
 int idx_to_sft_(int SftIndex);
 sft FAR *idx_to_sft(int SftIndex);
 int get_sft_idx(UCOUNT hndl);
+struct cds FAR *get_cds_unvalidated(unsigned dsk);
 struct cds FAR *get_cds(unsigned dsk);
 struct cds FAR *get_cds1(unsigned dsk);
 COUNT DosTruename(const char FAR * src, char FAR * dest);
@@ -276,7 +277,7 @@ COUNT DosSetCountry(UWORD cntry);
 COUNT DosGetCodepage(UWORD * actCP, UWORD * sysCP);
 COUNT DosSetCodepage(UWORD actCP, UWORD sysCP);
 VOID FAR *DosGetDBCS(void);
-UWORD ASMCFUNC syscall_MUX14(DIRECT_IREGS);
+UWORD ASMCFUNC syscall_MUX14(iregs FAR *);
 #if defined(DBCS)
 BOOL dbcs_IsInTbl(CONST struct nlsDBCS FAR *nlsdbcs, UBYTE ch);
 int dbcs_Mblen(CONST struct nlsDBCS FAR *nlsdbcs, CONST void FAR *str);

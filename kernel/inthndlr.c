@@ -63,16 +63,26 @@ struct HugeSectorBlock {
 /* variables needed for the rest of the handler.                        */
 /* this here works on the users stack !! and only very few functions 
    are allowed                                                          */
+
+/* TODO: really, really make sure that this function works properly     */
+/* even when SS != DGROUP (some changes to the compiler (!) may be      */
+/* necessary).  Currently, between Turbo C++, gcc-ia16, & Open Watcom,  */
+/* it seems only Watcom has explicit support for calling near-data      */
+/* functions with SS != DGROUP.  The code for this function happens to  */
+/* to compile under gcc-ia16 to correctly-behaving code _for now_.  But */
+/* it will be better to be able to guarantee this.   -- tkchia 20191207 */
 VOID ASMCFUNC int21_syscall(iregs FAR * irp)
 {
   Int21AX = irp->AX;
 
   switch (irp->AH)
   {
-    /* Set Interrupt Vector                                         */
+    /* Set Interrupt Vector - now implemented in entry.asm          */
+#if 0
     case 0x25:
       setvec(irp->AL, (intvec)MK_FP(irp->DS, irp->DX));
       break;
+#endif
 
       /* DosVars - get/set dos variables                              */
     case 0x33:
@@ -140,12 +150,17 @@ VOID ASMCFUNC int21_syscall(iregs FAR * irp)
 
           /* Get DOS-C release string pointer                     */
         case 0xff:
+#ifndef __GNUC__
           irp->DX = FP_SEG(os_release);
+#else  /* TODO: remove this hacky SS != DGROUP workaround  --tkchia 20191207 */
+          asm volatile("movw %%ds, %0" : "=g" (irp->DX));
+#endif
           irp->AX = FP_OFF(os_release);
       }
       break;
 
-    /* Get Interrupt Vector                                           */
+    /* Get Interrupt Vector - now implemented in entry.asm            */
+#if 0
     case 0x35:
     {
       intvec p = getvec(irp->AL);
@@ -153,6 +168,7 @@ VOID ASMCFUNC int21_syscall(iregs FAR * irp)
       irp->BX = FP_OFF(p);
       break;
     }
+#endif
 
       /* Set PSP                                                      */
     case 0x50:
@@ -726,12 +742,14 @@ dispatch:
 
       /* Get (editable) DOS Version                                   */
     case 0x30:
+    {
+      psp FAR *p = MK_FP(cu_psp, 0);
+
       if (lr.AL == 1) /* from RBIL, if AL=1 then return version_flags */
           lr.BH = version_flags;
       else
           lr.BH = OEM_ID;
-      lr.AL = os_setver_major;
-      lr.AH = os_setver_minor;
+      lr.AX = p->ps_retdosver;
 #ifdef NO_REVISION
       lr.BL = 0;
 #else
@@ -765,8 +783,9 @@ dispatch:
         }
 
       }
+    }
 
-      break;
+    break;
 
       /* Keep Program (Terminate and stay resident) */
     case 0x31:
@@ -1744,13 +1763,14 @@ struct int2f12regs {
   UWORD callerARG1;             /* used if called from INT2F/12 */
 };
 
-/* WARNING: modifications in `r' are used outside of int2F_12_handler()
- * On input r.AX==0x12xx, 0x4A01 or 0x4A02
+/* On input pr->AX==0x12xx, 0x4A01 or 0x4A02
  */
-VOID ASMCFUNC int2F_12_handler(struct int2f12regs r)
+VOID ASMCFUNC int2F_12_handler(struct int2f12regs FAR *pr)
 {
   COUNT rc;
   long lrc;
+
+#define r (*pr)
 
   if (r.AH == 0x4a)
   {
@@ -1950,7 +1970,7 @@ VOID ASMCFUNC int2F_12_handler(struct int2f12regs r)
                                    ; probable use: get sizeof(CDSentry)
                                  */
       {
-        struct cds FAR *cdsp = get_cds(r.callerARG1 & 0xff);
+        struct cds FAR *cdsp = get_cds_unvalidated(r.callerARG1 & 0xff);
 
         if (cdsp == NULL)
         {
@@ -2144,6 +2164,8 @@ error_exit:
     CritErrCode = r.AX;      /* Maybe set */
 error_carry:
   r.FLAGS |= FLG_CARRY;
+
+#undef r
 }
 
 /*
