@@ -103,16 +103,20 @@ all:
 	cd boot && $(MAKE) -f makefile.wc  production
 	cd sys && $(MAKE) -f makefile.wc  production
 	cd kernel && $(MAKE) -f makefile.wc  production
+	$(MAKEREMOVE)
 
 clean:
+	$(MAKEADJUST)
 	cd utils && $(MAKE) -f makefile.wc clean
 	cd lib && $(MAKE) -f makefile.wc  clean
 	cd drivers && $(MAKE) -f makefile.wc  clean
 	cd boot && $(MAKE) -f makefile.wc  clean
 	cd sys && $(MAKE) -f makefile.wc  clean
 	cd kernel && $(MAKE) -f makefile.wc  clean
+	$(MAKEREMOVE)
 
 clobber:
+	$(MAKEADJUST)
 	cd utils && $(MAKE) -f makefile.wc clobber
 	cd lib && $(MAKE) -f makefile.wc  clobber
 	cd drivers && $(MAKE) -f makefile.wc  clobber
