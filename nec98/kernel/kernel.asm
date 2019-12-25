@@ -396,11 +396,11 @@ cont:           ; Now set up call frame
 ;!!                mov     byte [_NumFloppies],al ; and how many
 
                 call _query_cpu
+                mov     [_CPULevel], al
 %if XCPU != 86
  %if XCPU < 186 || (XCPU % 100) != 86 || (XCPU / 100) > 9
   %fatal Unknown CPU level defined
  %endif
-                mov     [_CPULevel], al
                 cmp     al, 0
                 ja      .cpu_queried
                 ; check 8086/88 or NEC V30/V20
