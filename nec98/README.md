@@ -11,12 +11,12 @@ Base patches from:
 * http://www.retropc.net/tori/freedos/  
 kernel 2028 (2005/7/24)(bootloader, sys.com)  
 kernel 2035a (2005/7/25) (kernel)
-* from http://bauxite.sakura.ne.jp/wiki/mypad.cgi?p=DOS%2FFreeDOS%2FFreeDOS%2898%29%2Ftemp  
-fd98patch-20060906.zip
+* fd98patch-20060906.zip from http://bauxite.sakura.ne.jp/wiki/mypad.cgi?p=DOS%2FFreeDOS%2FFreeDOS%2898%29%2Ftemp
 
 FreeDOS development kernel:
 
 * http://www.fdos.org/
+* http://github.com/FDOS/kernel/
 * http://github.com/PerditionC/fdkernel/
 
 
@@ -25,7 +25,6 @@ TODO
 
 * Improve compatibilities  
 (int 0xDC, internal memory layout, many FEPs support...)
-* Support FAT32
 * etc, etc...
 
 
