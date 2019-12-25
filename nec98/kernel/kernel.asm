@@ -400,12 +400,23 @@ cont:           ; Now set up call frame
  %if XCPU < 186 || (XCPU % 100) != 86 || (XCPU / 100) > 9
   %fatal Unknown CPU level defined
  %endif
+                mov     [_CPULevel], al
+                cmp     al, 0
+                ja      .cpu_queried
+                ; check 8086/88 or NEC V30/V20
+                push    ax
+                mov     ax, 0100h
+                db      0d5h, 10h              ; AAD 16
+                cmp     ax, 0010h
+                pop     ax
+                je      .cpu_queried
+                mov     al, 1                  ; treat V30 as 186
+.cpu_queried:
                 cmp     al, (XCPU / 100)
                 jb      cpu_abort       ; if CPU not supported -->
 
                 cpu XCPU
 %endif
-                mov     [_CPULevel], al
                 
                 mov     ax,ss
                 mov     ds,ax
@@ -419,6 +430,8 @@ cpu_abort:
 %ifdef NEC98
 ; NEC98
 ; todo: display message about CPU...
+        mov ah, 17h            ; raise BEEP
+        int 18h
 .wait:
         sti
         nop
