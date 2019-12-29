@@ -129,19 +129,11 @@ STATIC void CharCmd(struct dhdr FAR **pdev, unsigned command)
 
 STATIC int Busy(struct dhdr FAR **pdev)
 {
-  CharCmd(pdev, C_ISTAT);
-  return CharReqHdr.r_status & S_BUSY;
-}
-
-#if 1
-STATIC int ConBusy(struct dhdr FAR **pdev)
-{
   CharCmd(pdev, C_NDREAD);
-  if ((CharReqHdr.r_status & (S_ERROR | S_DONE)) == S_DONE)
-    return (CharReqHdr.r_status & S_BUSY);
-  return Busy(pdev);
- }
-#endif
+  if (CharReqHdr.r_status & S_ERROR)
+    CharCmd(pdev, C_ISTAT);
+   return CharReqHdr.r_status & S_BUSY;
+}
 
 void con_flush(struct dhdr FAR **pdev)
 {
@@ -164,7 +156,7 @@ int StdinBusy(void)
   struct dhdr FAR *dev = sft_to_dev(s);
 
   if (dev)
-    return ConBusy(&dev);
+    return Busy(&dev);
 
   return s->sft_posit >= s->sft_size;
 }
@@ -350,7 +342,7 @@ STATIC unsigned read_char_sft_dev(int sft_in, int sft_out,
         c = CTL_C;
         break;
       }
-      if (!ConBusy(pdev))
+      if (!Busy(pdev))
       {
         c = CharIO(pdev, 0, C_INPUT);
         break;
