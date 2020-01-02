@@ -40,7 +40,7 @@ static BYTE *mainRcsId =
 static char copyright[] =
     "(C) Copyright 1995-2012 Pasquale J. Villani and The FreeDOS Project.\n"
 #if defined(NEC98)
-    "(C) Copyright 2001-2018 FreeDOS(98) porting project.\n"
+    "(C) Copyright 2001-2020 FreeDOS(98) porting project.\n"
 #endif
     "All Rights Reserved. This is free software and comes with ABSOLUTELY NO\n"
     "WARRANTY; you can redistribute it and/or modify it under the terms of the\n"

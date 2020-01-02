@@ -4,7 +4,7 @@
 /*                                                              */
 /*    NEC PC-98 specific console and miscellaneous functions    */
 /*                                                              */
-/*    Copyright 2001-2018 FreeDOS(98) porting project           */
+/*    Copyright 2001-2020 FreeDOS(98) porting project           */
 /*                                                              */
 /****************************************************************/
 
