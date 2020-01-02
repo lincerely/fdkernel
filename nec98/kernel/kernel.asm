@@ -211,6 +211,9 @@ _save_cursor_attr   db  0e1h            ; 012bh セーブカーソルアトリ�
                 global  _esc_seq_cursor_pos
 _esc_seq_cursor_pos db  1bh, '[24;80R'  ; 012ch - 0133h scratchpad for esc[6n ret
 
+                resb    0136h - ($ - entry)
+                global  _disk_last_access_unit
+_disk_last_access_unit db 0             ; 0136h - last accessed disk unit number
 
 ;               resb    256 - ($ - entry)
 

@@ -232,6 +232,8 @@ STATIC bpb nec98_bpb_640 = { 512, 2, 1, 2, 0x70, 2*8*80, 0xfb, 2, 8, 2, 0, 0 };
 /*  F U N C T I O N S  --------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
 
+extern UBYTE ASM FAR disk_last_access_unit;
+
 COUNT ASMCFUNC FAR blk_driver(rqptr rp)
 {
   if (rp->r_unit >= blk_dev.dh_name[0] && rp->r_command != C_INIT)
@@ -241,7 +243,14 @@ COUNT ASMCFUNC FAR blk_driver(rqptr rp)
     return failure(E_FAILURE);  /* general failure */
   }
   else
-    return ((*dispatch[rp->r_command]) (rp, getddt(rp->r_unit)));
+  {
+    dsk_proc * const blk_func = dispatch[rp->r_command];
+    if (blk_func != blk_error)
+    {
+      disk_last_access_unit = rp->r_unit;    /* 0060:0136 */
+    }
+    return ((*blk_func) (rp, getddt(rp->r_unit)));
+  }
 }
 
 #if defined(NEC98)
