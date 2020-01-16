@@ -273,6 +273,46 @@ arg drive, mode, {dap_p,4}
 %endif
 
 ;
+; COUNT ASMPASCAL fl_lba_readwrite_nec98(BYTE drive, WORD mode, ULONG lba_address, WORD count_by_byte, UBYTE FAR *buffer);
+;
+%ifdef NEC98
+		global	FL_LBA_READWRITE_NEC98
+FL_LBA_READWRITE_NEC98:
+		push	bp
+		mov	bp, sp
+arg drive, mode, {lba_address,4}, count_by_byte, {buffer,4}
+		mov	al, [.drive]
+		and	al, 7fh
+		mov	dl, al
+		and	dl, 0f0h
+		jz	.hd		; sasi/ide (DAUA=0x)
+		cmp	dl, 20h		; scsi     (DAUA=2x)
+		jz	.hd
+.no_hd:
+		mov	ax, 40h		; error (Equipment check)
+		jmp	short .exit
+.hd:
+		push	bx
+		push	cx
+		push	es
+		mov	ah, [.mode + 1]
+		mov	bx, [.count_by_byte]
+		mov	cx, [.lba_address]
+		mov	dx, [.lba_address + 2]
+		les	bp, [.buffer]
+		int	1bh
+		xchg	al, ah
+		sbb	bx, bx
+		and	ax, bx
+		pop	es
+		pop	cx
+		pop	bx
+.exit:
+		pop	bp
+		ret	2 + 2 + 4 + 2 + 4
+%endif
+
+;
 ; void ASMPASCAL fl_readkey (void);
 ;
 

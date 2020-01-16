@@ -28,6 +28,8 @@
 #include "globals.h"
 #include "dyndata.h"
 
+#define USE_LBA 1
+
 #ifdef VERSION_STRINGS
 static BYTE *dskRcsId =
     "$Id: dsk.c 1702 2012-02-04 08:46:16Z perditionc $";
@@ -56,9 +58,9 @@ COUNT ASMPASCAL fl_verify(WORD, WORD, WORD, WORD, WORD, UBYTE FAR *);
 COUNT ASMPASCAL fl_setdisktype(WORD, WORD);
 COUNT ASMPASCAL fl_setmediatype(WORD, WORD, WORD);
 VOID ASMPASCAL fl_readkey(VOID);
-extern COUNT ASMPASCAL fl_lba_ReadWrite(BYTE drive, WORD mode,
-                                       struct _bios_LBA_address_packet FAR
-                                       * dap_p);
+#if defined(NEC98) && USE_LBA
+COUNT ASMPASCAL fl_lba_readwrite_nec98(BYTE drive, WORD mode, ULONG lba_address, WORD count_by_byte, UBYTE FAR *buffer);
+#endif
 UWORD ASMPASCAL floppy_change(UWORD);
 #if defined(NEC98)
 WORD ASMPASCAL fl_sense(WORD);
@@ -74,6 +76,9 @@ WORD ASMPASCAL fl_readid(WORD, UBYTE FAR *);
 #pragma aux (pascal) floppy_change modify exact [ax]
 #pragma aux (pascal) fl_sense modify exact [ax dx]
 #pragma aux (pascal) fl_readid modify exact [ax bx cx dx]
+#  if USE_LBA
+#pragma aux (pascal) fl_lba_readwrite_nec98 modify exact [ax dx]
+#  endif
 # else
 /* IBMPC */
 #pragma aux (pascal) fl_reset modify exact [ax dx]
@@ -96,10 +101,15 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 
 #define NENTRY          26      /* total size of dispatch table */
 
-#define LBA_READ         0x4200
-#define LBA_WRITE        0x4300
-UWORD LBA_WRITE_VERIFY = 0x4302;
-#define LBA_VERIFY       0x4400
+#undef LBA_READ
+#undef LBA_WRITE
+#undef LBA_VERIFY
+#undef LBA_WRITE_VERIFY
+
+#define LBA_READ         0x0600
+#define LBA_WRITE        0x0500
+UWORD LBA_WRITE_VERIFY = 0x0200;
+#define LBA_VERIFY       0x0100
 #define LBA_FORMAT       0xffff /* fake number for FORMAT track
                                    (only for NON-LBA floppies now!) */
 
@@ -1276,10 +1286,6 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
                  ULONG LBA_address, unsigned totaltodo,
                  UWORD * transferred)
 {
-  static struct _bios_LBA_address_packet dap = {
-    16, 0, 0, 0, 0, 0, 0
-  };
-
   unsigned count;
   unsigned error_code = 0;
   struct CHS chs;
@@ -1384,35 +1390,26 @@ STATIC int LBA_Transfer(ddt * pddt, UWORD mode, VOID FAR * buffer,
 
     for (num_retries = 0; num_retries < N_RETRY; num_retries++)
     {
+#if USE_LBA
       if ((pddt->ddt_descflags & DF_LBA) && mode != LBA_FORMAT)
       {
-        dap.number_of_blocks = count;
-
-        dap.buffer_address = transfer_address;
-
-        dap.block_address_high = 0;     /* clear high part */
-        dap.block_address = LBA_address;        /* clear high part */
-
-        /* Load the registers and call the interrupt. */
-
+        UWORD bytecnt = bytes_sector * count;
         if ((pddt->ddt_descflags & DF_WRTVERIFY) || mode != LBA_WRITE_VERIFY)
         {
-          error_code = fl_lba_ReadWrite(driveno, mode, &dap);
+          error_code = fl_lba_readwrite_nec98(driveno, mode, LBA_address, bytecnt, transfer_address);
         }
         else
         {
           /* verify requested, but not supported */
-          error_code =
-              fl_lba_ReadWrite(driveno, LBA_WRITE, &dap);
-
+          error_code = fl_lba_readwrite_nec98(driveno, LBA_WRITE, LBA_address, bytecnt, transfer_address);
           if (error_code == 0)
           {
-            error_code =
-                fl_lba_ReadWrite(driveno, LBA_VERIFY, &dap);
+            error_code = fl_lba_readwrite_nec98(driveno, LBA_VERIFY, LBA_address, bytecnt, transfer_address);
           }
         }
       }
       else
+#endif /* USE_LBA */
       {                         /* transfer data, using old bios functions */
 
         if (LBA_to_CHS(LBA_address, &chs, pddt))

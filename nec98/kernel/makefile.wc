@@ -248,7 +248,8 @@ dyninit.obj:  $(KSRCD)dyninit.c  $(INITHEADERS) $(TARGET_LNK)
 	$(CC) $(INITCFLAGS) $[@
 	$(INITPATCH) $^@
 
-initdisk.obj: $(UKSRCD)initdisk.c  $(INITHEADERS) $(TARGET_LNK)  
+#initdisk.obj: $(UKSRCD)initdisk.c  $(INITHEADERS) $(TARGET_LNK)  
+initdisk.obj: $(UKSRCD)initdisk.c  $(INITHEADERS) $(TARGET_LNK)  $(UKSRCD)initdsk2.c  
 	$(CC) $(INITCFLAGS) $[@
 	$(INITPATCH) $^@
 
