@@ -1039,6 +1039,7 @@ BOOL ConvPartTableEntryToIntern_ibm(struct PartTableEntry * pEntry,
 {
   int i;
 
+  UNREFERENCED_PARAMETER(driveParam);
   if (pDisk[0x1fe] != 0x55 || pDisk[0x1ff] != 0xaa)
   {
 /*
@@ -1323,6 +1324,7 @@ static int Read1CHSSector(struct DriveParamS *driveParam, unsigned drive,
                           UWORD cylinder, UBYTE head, UBYTE sector, void * buffer)
 {
   /* todo: support FD */
+  UNREFERENCED_PARAMETER(drive);
   return Read1Sector(driveParam->driveno, cylinder, ((UWORD)head << 8) | sector, buffer, 1024);
 }
 #else

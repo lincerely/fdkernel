@@ -1310,6 +1310,7 @@ PartitionsField ScanForPrimaryPartitions(struct DriveParamS * driveParam,
       continue;
 
     partitionStart = pEntry->RelSect;
+    UNREFERENCED_PARAMETER(startSector);
 # if 0
     sprintf(partitionName, "Pri:%d", i + 1);
 # endif
