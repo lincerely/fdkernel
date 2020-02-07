@@ -383,9 +383,8 @@ nec98_set_convkey_table_ax_sub:
 		jz	.tail
 		cmp	byte [si], 0feh
 		jne	.copy
-		cmp	cl, 15
-		jne	.copy
 		sub	cl, 6
+		jbe	.tail
 		add	si, 6
 .copy:
 		lodsb
@@ -428,6 +427,7 @@ arg_f {keydata,4}, keyindex
 		cld
 		push	si
 		push	di
+		push	es
 		mov	ax, [.keyindex]
 		les	di, [.keydata]
 		cmp	al, 0ffh
@@ -437,6 +437,7 @@ arg_f {keydata,4}, keyindex
 		ja	.exit
 		call	nec98_getset_progkey_sub
 .exit:
+		pop	es
 		pop	di
 		pop	si
 		pop	bp
