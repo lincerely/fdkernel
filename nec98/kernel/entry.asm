@@ -39,11 +39,11 @@ segment HMA_TEXT
 %ifdef NEC98
                 extern   _int29_main
                 extern   _intdc_main
-                extern   _in_processing_stopkey:wrt PGROUP
-                extern   _clear_attr:wrt PGROUP
-                extern   _put_attr:wrt PGROUP
-                extern   _cursor_view:wrt PGROUP
-                extern   _fd98_retract_hd_pending:wrt PGROUP
+                extern   _in_processing_stopkey
+                extern   _clear_attr
+                extern   _put_attr
+                extern   _cursor_view
+                extern   _fd98_retract_hd_pending
                 extern   _nec98_flush_bios_keybuf
 %endif
                 extern   _error_tos
@@ -59,7 +59,7 @@ segment HMA_TEXT
                 extern   int21regs_seg
                 extern   int21regs_off
 
-                extern   _Int21AX:wrt DGROUP
+                extern   _Int21AX
 
                 extern  _DGROUP_
 
@@ -668,7 +668,7 @@ int2526:
 ;
 
  %ifdef USE_PRIVATE_INT29_STACK
-                extern int29_stack_bottom:wrt PSP
+                extern int29_stack_bottom
                 global int29_stack_org      ; just for debugging
                 global int29_stack_count    ; ditto
 
@@ -679,7 +679,7 @@ int29_stack_count:
                 db 0
  %endif
  %ifdef USE_PRIVATE_INTDC_STACK
-                extern intdc_stack_bottom:wrt PSP
+                extern intdc_stack_bottom
                 global intdc_stack_org      ; just for debugging
                 global intdc_stack_count    ; ditto
 
@@ -693,7 +693,7 @@ intdc_stack_org:
  %endif
 
 reloc_call_int29_handler:
-%ifdef USE_PRIVATE_INT29_STACK
+ %ifdef USE_PRIVATE_INT29_STACK
                 cli
                 sub byte [cs: int29_stack_count], 1
                 jnc .stk_set
@@ -703,27 +703,34 @@ reloc_call_int29_handler:
                 mov ss, sp
                 mov sp, int29_stack_bottom
     .stk_set:
-%endif
+ %endif
+                cld
                 sti
-                PUSH$ALL
                 Protect386Registers
-                mov dx,DGROUP
-                mov ds,dx
-                sub ah,ah
-                push    ax
-                call    _int29_main
+                push bx
+                push cx
+                push dx
+                push ds
+                push es
+                push ax
+                mov ds, [cs: _DGROUP_]
+                call _int29_main
                 pop ax
+                pop es
+                pop ds
+                pop dx
+                pop cx
+                pop bx
                 Restore386Registers
-                POP$ALL
-%ifdef USE_PRIVATE_INT29_STACK
+ %ifdef USE_PRIVATE_INT29_STACK
+                cli
                 add byte [cs: int29_stack_count], 1
                 jnc .re_stk
-                cli
-                mov sp, word [cs: int29_stack_org]
                 mov ss, word [cs: int29_stack_org + 2]
-                sti
+                mov sp, word [cs: int29_stack_org]
     .re_stk:
-%endif
+                ;sti
+ %endif
                 iret
 
 ;
@@ -749,8 +756,7 @@ reloc_call_intdc_handler:
                 PUSH$ALL
                 mov bp,sp
                 Protect386Registers
-                mov ax,DGROUP
-                mov ds,ax
+                mov ds, [cs: _DGROUP_]
                 push    ss
                 push    bp
                 call    _intdc_main

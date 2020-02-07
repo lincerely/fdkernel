@@ -267,14 +267,14 @@ _dummy_prn_intr:
                 jmp far _nul_intr
 %endif ; DUMMY_CON_IN_IOSYS
 
-%if 1  ; USE_PRIVATE_INT29_STACK (see entry.asm)
+%ifdef USE_PRIVATE_INT29_STACK		; (see entry.asm)
                 ; private stack for int29
                 global int29_stack_bottom
                 align 2
                 times 16 db 'Stack for int29.'          ; 16x16 = 256bytes
 int29_stack_bottom:
 %endif
-%if 1  ; USE_PRIVATE_INTDC_STACK (see entry.asm)
+%ifdef USE_PRIVATE_INTDC_STACK		; (see entry.asm)
                 ; private stack for intdc
                 global intdc_stack_bottom
                 align 2
