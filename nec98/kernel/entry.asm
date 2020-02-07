@@ -30,8 +30,7 @@
 
                 %include "segs.inc"
                 %include "stacks.inc"
-
-%define USE_PRIVATE_INT29_STACK 1
+                %include "nec98cfg.inc"
 
 segment HMA_TEXT
                 extern   _int21_syscall
@@ -668,7 +667,7 @@ int2526:
 ;       int29_handler(iregs UserRegs)
 ;
 
-%ifdef USE_PRIVATE_INT29_STACK
+ %ifdef USE_PRIVATE_INT29_STACK
                 extern int29_stack_bottom:wrt PSP
                 global int29_stack_org      ; just for debugging
                 global int29_stack_count    ; ditto
@@ -678,7 +677,20 @@ int29_stack_org:
                 dd 0
 int29_stack_count:
                 db 0
-%endif
+ %endif
+ %ifdef USE_PRIVATE_INTDC_STACK
+                extern intdc_stack_bottom:wrt PSP
+                global intdc_stack_org      ; just for debugging
+                global intdc_stack_count    ; ditto
+
+  %ifndef USE_PRIVATE_INT29_STACK
+                align 2
+  %endif
+intdc_stack_count:
+                db 0
+intdc_stack_org:
+                dd 0
+ %endif
 
 reloc_call_int29_handler:
 %ifdef USE_PRIVATE_INT29_STACK
@@ -721,6 +733,18 @@ reloc_call_int29_handler:
 ;       intdc_handler(iregs UserRegs)
 ;
 reloc_call_intdc_handler:
+ %ifdef USE_PRIVATE_INTDC_STACK
+                cli
+                sub byte [cs: intdc_stack_count], 1
+                jnc .stk_set
+                mov word [cs: intdc_stack_org + 2], ss
+                mov word [cs: intdc_stack_org], sp
+                mov sp, PSP ; 0060h
+                mov ss, sp
+                mov sp, intdc_stack_bottom
+    .stk_set:
+ %endif
+                cld
                 sti
                 PUSH$ALL
                 mov bp,sp
@@ -734,6 +758,15 @@ reloc_call_intdc_handler:
                 pop ax
                 Restore386Registers
                 POP$ALL
+ %ifdef USE_PRIVATE_INTDC_STACK
+                cli
+                add byte [cs: intdc_stack_count], 1
+                jnc .re_stk
+                mov ss, word [cs: intdc_stack_org + 2]
+                mov sp, word [cs: intdc_stack_org]
+    .re_stk:
+                ;sti
+ %endif
                 iret
 %endif
 

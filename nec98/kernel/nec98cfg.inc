@@ -4,6 +4,8 @@
 ;-------------------------------
 %define DUMMY_CON_IN_IOSYS  1
 %define BIG_SECTOR 1
+%define USE_PRIVATE_INT29_STACK 1
+%define USE_PRIVATE_INTDC_STACK 1
 ;-------------------------------
 
 

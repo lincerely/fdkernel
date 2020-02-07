@@ -274,6 +274,13 @@ _dummy_prn_intr:
                 times 16 db 'Stack for int29.'          ; 16x16 = 256bytes
 int29_stack_bottom:
 %endif
+%if 1  ; USE_PRIVATE_INTDC_STACK (see entry.asm)
+                ; private stack for intdc
+                global intdc_stack_bottom
+                align 2
+                times 16 db 'Stack for intDC.'          ; 16x16 = 256bytes
+intdc_stack_bottom:
+%endif
 %if 1  ; UNHANDLED_INT_HANDLER_IN_IOSYS
                 global _unhandled_int_handler_iosys
 _unhandled_int_handler_iosys:

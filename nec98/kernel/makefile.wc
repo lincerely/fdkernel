@@ -98,7 +98,7 @@ cpu.obj:	$(KSRCD)cpu.asm  $(KSRCD)segs.inc $(TARGET_LNK)
 dosidle.obj:	$(KSRCD)dosidle.asm $(KSRCD)segs.inc			$(TARGET_LNK)
 	$(ASSEMBLE)
 
-entry.obj:	$(UKSRCD)entry.asm $(KSRCD)segs.inc $(HDRD)stacks.inc	$(TARGET_LNK)
+entry.obj:	$(UKSRCD)entry.asm $(KSRCD)segs.inc $(HDRD)stacks.inc  $(UKSRCD)nec98cfg.inc	$(TARGET_LNK)
 	$(ASSEMBLE)
 
 execrh.obj:	$(KSRCD)execrh.asm  $(KSRCD)segs.inc 			$(TARGET_LNK)
