@@ -1309,22 +1309,63 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
 
     case 0x12:  /* Get MS-DOS product version and Machine Type */
     {
-      UWORD bflag = peekw(0, 0x500);
-      UWORD bflag2 = peekb(0, 0x458);
-      UWORD m = 0;
-      r->AX = peekw(0x60, 0x20);
-      switch(bflag & 0x3801)
-      {
-        case 0x0000: m = 0; break; /* PC-9801 (the original) */
-        case 0x2000: m = 1; break; /* PC-9801E/F/M */
-        case 0x3001: m = 2; break; /* PC-9801U */
-        case 0x2001: m = (bflag2 & 0x40) ? 4 : 3 ; break; /* PC-98x1 GS/normal */
-        case 0x0800: m = 0x0100; /* PC-98XA */
-        default:
-          m = (bflag & 0x0800) ? 0x0101 : 4; /* check Hi-reso */
+    /*
+    (20200207~0209: tested on NEC MS-DOS 6.2)
+     0000:0500 word |0481|0487|0458|result 
+      b13 12 11   0 | b6 |byte| b7 |  DX   | description
+     ---------------+----+----+----+-------+----------------------
+        0  0  0   0 |  0 |    |  0 | 0000h | PC-9801 the original
+        1  0  0   0 |  0 |    |  0 | 0001h | PC-9801E/F/M
+        1  1  0   1 |  0 |    |  0 | 0002h | PC-9801U
+        1  0  0   1 |  0 |    |  0 | 0003h | PC-98x1 normal (old key mode?)
+        1  0  0   1 |  1 |    |  0 | 0004h | PC-98x1 normal (new key mode?) [*1]
+        0  0  1   0 |  0 |    |  0 | 0100h | PC-98XA
+        0  0  1   0 |  1 |    |  0 | 0101h | PC-98XA? [*2]
+        1  0  1   0 |    |    |  0 | 0101h | PC-98 hi-res (except PC-H98, PC-98XA)
+              1     |    |    |  0 |(0101h)| (PC-98 hi-res)
+              0     |    |!04 |  1 | 1004h | PC-H98 normal (other than i486)
+              0     |    | 04 |  1 | 1005h | PC-H98 normal (i486) [*3]
+              1     |    |!04 |  1 | 1101h | PC-H98 hi-res (other than i486)
+              1     |    | 04 |  1 | 1102h | PC-H98 hi-res (i486) [*4]
+        1  1  0   0 |    |    |  0 |(0004h)| PC-98LT, PC-98HA, DB-P1
+    
+    (20200208: tested on NEC MS-DOS 3.3D, EPSON MS-DOS 5.0/6.2)
+      *1 DX=0003h on EPSON MS-DOS 5.0/6.2
+         DX=0003h on NEC MS-DOS 3.3D with [0000:0458] bit6=0
+         DX=0004h on NEC MS-DOS 3.3D with [0000:0458] bit6=1 (PC-98GS)
+      *2 DX=0100h on NEC MS-DOS 3.3D, EPSON MS-DOS 5.0/6.2
+      *3 DX=1004h on EPSON MS-DOS 5.0/6.2
+      *4 DX=1101h on EPSON MS-DOS 5.0/6.2
+    
+    */
+      UWORD b500 = peekw(0, 0x0500) & 0x3801;
+      UBYTE b481 = peekb(0, 0x0481);
+      UWORD m = 4;
+
+      if (peekb(0, 0x0458) & 0x80) {  /* PC-H98 */
+        m = ((b500 & 0x800) ? 0x1101 : 0x1004) + (peekb(0, 0x0487) == 4);
       }
-      if (bflag2 & 0x80)  /* check H98 */
-        m |= 0x1000;
+      else if (b500 & 0x0800) { /* PC-98 hi-res */
+        switch (b500) {
+          case 0x0800:  /* PC-98XA */
+            m = 0x0100 + ((b481 & 0x40) == 0x40);
+            break;
+          default:      /* PC-98 hi-res (except PC-H98, PC-98XA) */
+            m = 0x0101;
+        }
+      }
+      else {    /* PC-98x1/PC-98GS normal */
+        switch (b500) {
+          case 0x0000: m = 0; break;    /* PC-9801 the original */
+          case 0x2000: m = 1; break;    /* PC-9801E/F/M */
+          case 0x3001: m = 2; break;    /* PC-9801U */
+          case 0x2001:                  /* PC-98x1 normal */
+            m = (b481 & 0x40) ? 4 : 3;
+            break;
+        }
+      }
+
+      r->AX = peekw(0x60, 0x20);
       r->DX = m;
       return;
     }
