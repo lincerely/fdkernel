@@ -235,6 +235,17 @@ conseg60_begin:
 conseg60_end:
 ;--------
 
+; some codes and data in IO.SYS area
+;--------
+%define INCLUDE_SUPSEG60
+		align	2
+		global	supseg60_begin
+		global	supseg60_end
+supseg60_begin:
+                %include "supseg60.asm"
+supseg60_end:
+;--------
+
 %ifdef DUMMY_CON_IN_IOSYS
 ; dummy con driver (workaround for some FEP driver(s) - yes, ATOK6 it is)
 ; On genuine (NEC's and EPSON's) MS-DOSes, CON device is placed at:

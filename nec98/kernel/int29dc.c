@@ -1106,6 +1106,8 @@ VOID ASMCFUNC int29_main(UBYTE c)
  * (only for NEC PC-98 series and EPSON compatibles)
  */
 
+#define USE_INTDC_SUPSEG60 1
+
 extern UWORD ASM FAR cnvkey_src[];
 extern UBYTE ASM FAR cnvkey_dest[][16];
 
@@ -1118,6 +1120,9 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
       {
         case 0x0000:		/* Get type of SCSI devices */
         {
+#if USE_INTDC_SUPSEG60
+          nec98_sup_get_scsi_devices_far(MK_FP(r->DS, r->DX));
+#else
           UBYTE equips = *(UBYTE FAR *)MK_FP(0, 0x482);
           UBYTE FAR *p = MK_FP(r->DS, r->DX);
           int i;
@@ -1135,6 +1140,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
             }
           }
           p[7] = 0xff;
+#endif
           return;
         }
       }
@@ -1340,6 +1346,9 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
       *4 DX=1101h on EPSON MS-DOS 5.0/6.2
     
     */
+#if USE_INTDC_SUPSEG60
+      r->DX = nec98_sup_get_machine_type_far();
+#else
       UWORD b500 = peekw(0, 0x0500) & 0x3801;
       UBYTE b481 = peekb(0, 0x0481);
       UWORD m = 4;
@@ -1363,11 +1372,15 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
         /* fallback: m=4 (PC-98x1/PC-98GS normal) */
       }
       r->DX = m;
+#endif
       r->AX = peekw(0x60, 0x20);
       return;
     }
 
     case 0x13:  /* ドライブ名-DA/UAリスト取得 */
+#if USE_INTDC_SUPSEG60
+      nec98_sup_get_daua_list_far(MK_FP(r->DS, r->DX));
+#else
       {
         UBYTE FAR *ptr = MK_FP(r->DS, r->DX);
         UBYTE FAR *daua = MK_FP(0x60, 0x006c);
@@ -1383,6 +1396,7 @@ VOID ASMCFUNC intdc_main(iregs FAR *r)
           ptr[0x1b + i*2] = daua2[i*2 + 1];
         }
       }
+#endif
       return;
 
     case 0x81:

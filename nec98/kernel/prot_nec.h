@@ -35,6 +35,16 @@ VOID  ASMCON_FAR nec98_crt_scroll_up_far(VOID);
 VOID ASMCON_FAR  nec98_clear_crt_all_far(VOID);
 
 
+/* console.asm + conseg60.asm */
+# define ASMSUP  ASMCFUNC
+# define ASMSUP_FAR  FAR ASMCFUNC
+# define ASMSUPPASCAL_FAR  FAR ASMPASCAL
+
+VOID ASMSUPPASCAL_FAR nec98_sup_get_scsi_devices_far(VOID FAR *p);
+UWORD ASMSUP_FAR nec98_sup_get_machine_type_far(VOID);
+VOID ASMSUPPASCAL_FAR nec98_sup_get_daua_list_far(VOID FAR *p);
+
+
 #if defined __WATCOMC__
 #pragma aux clear_crt modify exact [ax]
 #pragma aux get_crt_width modify exact [ax]
@@ -55,6 +65,10 @@ VOID ASMCON_FAR  nec98_clear_crt_all_far(VOID);
 #pragma aux (pascal) nec98_crt_rolldown_far modify exact [ax dx]
 #pragma aux nec98_crt_scroll_up_far modify exact [ax dx]
 #pragma aux nec98_clear_crt_all_far modify exact [ax dx]
+
+#pragma aux (pascal) nec98_sup_get_scsi_devices_far modify exact [ax]
+#pragma aux nec98_sup_get_machine_type_far modify exact [ax]
+#pragma aux (pascal) nec98_sup_get_daua_list_far modify exact [ax]
 #endif
 
 
