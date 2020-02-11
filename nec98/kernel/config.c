@@ -1095,7 +1095,7 @@ UWORD GetBiosKey_nec98(int timeout_sec, int check_shift)
   long timeout;
   iregs r;
 
-  timeout = timeout_sec * 60;
+  timeout = timeout_sec > 0 ? timeout_sec * 60 : 0;
   do {
     r.a.b.h = 0x05;				/* are there keys available ? */
     init_call_intr(0x18, &r);
