@@ -36,6 +36,7 @@ segment HMA_TEXT
                 global  _DosIdle_int
                 global  _DosIdle_hlt
 
+                extern   _ErrorMode
                 extern   _InDOS
                 extern   _cu_psp
                 extern   _MachineId
@@ -62,6 +63,8 @@ _DosIdle_int:
                 call    _DosIdle_hlt
                 push    ds
                 mov     ds, [cs:_DGROUP_]
+                cmp     byte [_ErrorMode], 0
+                jne     DosId1
                 cmp     byte [_InDOS],1
                 ja      DosId1
                 call    Do_DosI
