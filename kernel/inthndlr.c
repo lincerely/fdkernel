@@ -446,12 +446,11 @@ dispatch:
      I have NO idea how real DOS handles this;
      the appended patch cures the worst symptoms
   */
-  if (/*ErrorMode && */lr.AH > 0x0c && lr.AH != 0x30 && lr.AH != 0x59)
+  if (ErrorMode && lr.AH > 0x0c && lr.AH != 0x30 && lr.AH != 0x59)
   {
     /*if (ErrorMode)*/ ErrorMode = 0;
   }
-  /* Check for Ctrl-Break */
-  if ((break_ena && InDOS == 1) || (lr.AH >= 1 && lr.AH <= 5) || (lr.AH >= 8 && lr.AH <= 0x0b))
+  else if (InDOS == 1 && (break_ena || (lr.AH >= 1 && lr.AH <= 5) || (lr.AH >= 8 && lr.AH <= 0x0b)))
     check_handle_break(&syscon);
 
   /* The dispatch handler                                         */
