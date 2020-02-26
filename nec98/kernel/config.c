@@ -1108,7 +1108,7 @@ UWORD GetBiosKey_nec98(int timeout_sec, int check_shift)
         return VK_F5;
     }
     WaitVSync(1); /* wait approx. 1/60sec */
-  } while (timeout < 0 || timeout--);
+  } while (timeout_sec < 0 || timeout--);
   return 0xffff;
 }
 
