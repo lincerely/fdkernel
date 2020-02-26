@@ -602,6 +602,10 @@ STATIC VOID parse_esc(UBYTE c)
 
               if ((new_attr & 0x10) == 0) new_attr |= 1;
               int29_esc_buf[int29_esc_cnt - 1] = '\0';
+#if defined(__WATCOMC__) && (__WATCOMC__ < 1300)   /* to avoid compiler's bug(?) */
+              if(int29_esc_cnt < sizeof(int29_esc_buf) - 1)
+                int29_esc_buf[int29_esc_cnt] = '\0';
+#endif
               for(arg = &int29_esc_buf[1]; arg != NULL; arg = next_arg)
               {
                 int attr;
