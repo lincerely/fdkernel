@@ -1090,26 +1090,25 @@ STATIC VOID WaitVSync(int count)
 	while (!(my_inp(0xa0) & 0x20)) ;
   }
 }
+
+extern UWORD ASMCFUNC init_nec98_getkey(VOID);
+extern UBYTE ASMCFUNC init_nec98_getshiftstate(VOID);
+
 UWORD GetBiosKey_nec98(int timeout_sec, int check_shift)
 {
   long timeout;
-  iregs r;
-
+  UWORD key;
   timeout = timeout_sec > 0 ? timeout_sec * 60 : 0;
   do {
-    r.a.b.h = 0x05;				/* are there keys available ? */
-    init_call_intr(0x18, &r);
-    if (r.b.b.h)				/* yes - fetch and return     */
-      return r.a.x;
-    if (check_shift) {
-      r.a.b.h = 0x02;				/* get shift state */
-      init_call_intr(0x18, &r);
-      if (r.a.x & 1)
-        return VK_F5;
+    key = init_nec98_getkey();
+    if (key != 0xffff) break;
+    if (check_shift && (init_nec98_getshiftstate() & 1)) {
+      key = VK_F5;
+      break;
     }
     WaitVSync(1); /* wait approx. 1/60sec */
   } while (timeout_sec < 0 || timeout--);
-  return 0xffff;
+  return key;
 }
 
 STATIC void SetTextColor_nec98(int attr)

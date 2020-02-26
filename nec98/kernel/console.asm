@@ -504,6 +504,24 @@ init_crt:
 	%endif
 		db	0
 
+		global	_init_nec98_getkey
+_init_nec98_getkey:
+		push	bx
+		mov	ah, 5
+		int	18h
+		sub	bh, 1
+		sbb	bx, bx
+		or	ax, bx		; AX=FFFFh if no keystroke
+		pop	bx
+		ret
+
+		global	_init_nec98_getshiftstate
+_init_nec98_getshiftstate:
+		mov	ah, 2
+		int	18h
+		mov	ah, 0
+		ret
+
 segment HMA_TEXT
 
 ; VOID ASMCFUNC set_curpos(UBYTE x, UBYTE y)
