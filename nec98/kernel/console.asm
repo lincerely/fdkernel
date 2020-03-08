@@ -397,7 +397,7 @@ init_crt:
 		int	18h
 		pop	ax
 	.setmode:
-		and	al, 0fdh	; bit2=0 (vertical line)
+		and	al, 0f9h	; bit2=0 (vertical line), bit1=0 (80columns)
 		mov	ah, 0ah		; set crt mode
 		int	18h
 		mov	ah, 0ch	; show screen
