@@ -41,6 +41,17 @@ segment .text
 	align	1
 	org	0
 
+Base_of_code:
+
+%macro _org 1
+  %if (($ - Base_of_code) > %1)
+    %error _org: too much code to fit within %1
+  %endif
+  %if ($ - Base_of_code < %1)
+    times (%1 - ($ - Base_of_code)) db 0
+  %endif
+%endmacro
+
 bsJump:		jmp	short real_start
 		nop
 bsOemName	db	'FreeDOS '	; OEM label
@@ -338,7 +349,12 @@ cluster_next:   lodsw                           ; AX = next cluster to read
 
 
 boot_error:	call	print
-		db	10, "err!",0
+%ifdef PRINT_WITH_LF
+		db	10
+%else
+		db	' '
+%endif
+		db	"Err!",0
 
 		xor	ah, ah
 		int	18h			; wait for a key
@@ -376,10 +392,13 @@ print:
 		lodsb
 		or	al, al
 		jz	.end
+%ifdef PRINT_WITH_LF
 		cmp	al, 10	; LF
 		jz	.lf
+%endif
 		stosw
 		jmp	short .loop
+%ifdef PRINT_WITH_LF
 	.lf:
 		mov	ax, di
 		mov	dl, 80 * 2
@@ -388,6 +407,7 @@ print:
 		mul	dl
 		mov	di, ax
 		jmp	short .loop
+%endif
 	.end:
 		mov	[.vram_off], di
 		mov	dx, di
@@ -590,7 +610,9 @@ readDisk:
 		ret
 %endif
 
+
+		_org	(512 - 2 - 11)
+
 filename	db	"KERNEL  SYS"
 
-		times	512 - $ + $$ db 0
-
+		dw	0aa55h			; signature
