@@ -1590,6 +1590,7 @@ PartitionsField ProcessDisk(int scanType, unsigned drive, PartitionsField Partit
   }
 
   if (*(UWORD FAR *)&(InitDiskTransferBuffer[0xfe]) == 0xaa55U
+      || fmemcmp(InitDiskTransferBuffer, "\xeb\x09\x00\x00\x49\x50\x4c\x31\x00\x00\x00", 11) == 0 /* FreeBSD(98) boot selector */
 # if 0
       /* to some paranoids' relief... */
       && (driveParam.sector_size == 256 || (driveParam.sector_size > 256 && *(UWORD FAR *)&(InitDiskTransferBuffer[0x1fe]) == 0xaa55U))
