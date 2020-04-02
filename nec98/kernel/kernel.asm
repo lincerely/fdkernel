@@ -890,7 +890,8 @@ _IoReqHdr       times 30 db 0      ; 72 - Device driver request header
                 times 6 db 0       ; 90 - unknown
                 global  _ClkRecord
 _ClkRecord      times 6 db 0       ; 96 - CLOCK$ transfer record
-                dw      0               ; 9C - unknown
+                global _SingleIOBuffer
+_SingleIOBuffer dw      0          ; 9C - I/O buffer for single-byte I/O
                 global  __PriPathBuffer
 __PriPathBuffer times 80h db 0     ; 9E - buffer for file name
                 global  __SecPathBuffer

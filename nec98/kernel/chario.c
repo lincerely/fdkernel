@@ -69,6 +69,7 @@ static BYTE *charioRcsId =
 #else
 #endif
 
+extern BYTE ASM SingleIOBuffer; /* SDA +9Ch */
 
 STATIC int CharRequest(struct dhdr FAR **pdev, unsigned command)
 {
@@ -126,10 +127,16 @@ STATIC void CharCmd(struct dhdr FAR **pdev, unsigned command)
 {
   while (CharRequest(pdev, command) == 1);
 }
+STATIC void CharCmd_ndread(struct dhdr FAR **pdev)
+{
+  CharReqHdr.r_count = 1;
+  CharReqHdr.r_trans = &SingleIOBuffer;
+  while (CharRequest(pdev, C_NDREAD) == 1);
+}
 
 STATIC int Busy(struct dhdr FAR **pdev)
 {
-  CharCmd(pdev, C_NDREAD);
+  CharCmd_ndread(pdev);
   if (CharReqHdr.r_status & S_ERROR)
     CharCmd(pdev, C_ISTAT);
    return CharReqHdr.r_status & S_BUSY;
@@ -165,7 +172,7 @@ int StdinBusy(void)
    CTL_C/CTL_S/CTL_P when outputting */
 int ndread(struct dhdr FAR **pdev)
 {
-  CharCmd(pdev, C_NDREAD);
+  CharCmd_ndread(pdev);
   if (CharReqHdr.r_status & S_BUSY)
     return -1;
   return CharReqHdr.r_ndbyte;
