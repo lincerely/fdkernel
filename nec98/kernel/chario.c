@@ -115,7 +115,12 @@ STATIC int CharIO(struct dhdr FAR **pdev, unsigned char ch, unsigned command)
 {
   int err = (int)BinaryCharIO(pdev, 1, &ch, command);
   if (err == 0)
+  {
+    /* workaround for katana4 */
+    if (command == C_INPUT && CharReqHdr.r_trans == (void FAR *)((char FAR *)&ch+1))
+      return ch;
     return 256;
+  }
   if (err < 0)
     return err;
   return ch;
