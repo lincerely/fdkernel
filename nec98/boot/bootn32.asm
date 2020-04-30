@@ -31,6 +31,7 @@
 ;	+--------+
 
 ;%define MULTI_SEC_READ  1
+%define DO_INIT_ON_ERROR 1
 
 		CPU 8086
 
@@ -104,6 +105,7 @@ real_start:
 ;cont:
 		push	si
 		cld
+; ensure ds == 0 (required, unforunately)
 		xor	cx, cx
 		mov	ds, cx
 		mov	word [BOOTPART_SCRATCHPAD], si
@@ -372,11 +374,21 @@ read_next:
 		push	bx
 		push	bp
 		mov	bp, bx
+	.call_read:
 		mov	bx, word [bsBytesPerSec]
 		mov	ax, [readDAUA]
 		int	1bh
+%ifdef DO_INIT_ON_ERROR
+		jnc	.read_noerr
+		mov	ah, 3
+		mov	al, [readDAUA]
+		int	1bh
+		jmp	short .call_read
+	.read_noerr:
+%else
 ;		jc	read_err
 		jc	boot_error
+%endif
 		pop	bp
 		pop	bx
 	; read_ok:
@@ -397,8 +409,8 @@ readDAUA	db	0
 
        times   0x01f1-$+$$ db 0
 
-filename	db	"KERNEL  SYS",0
+filename	db	"KERNEL  SYS"
 
-		times	0x01fe-$+$$ db 0
-
-sign	dw	0xAA55
+sign	dw	0, 0xAA55
+		; in boot32lb.asm: "Win9x uses all 4 bytes as magic value here."
+		; but I'm not sure of NEC PC-98 version...
