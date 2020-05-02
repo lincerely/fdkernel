@@ -11,9 +11,9 @@
 ;	|--------| 2000:0000
 ;	|BOOT SEC|
 ;	|(NEC98) |
-;	|--------| 1FE0:0000
+;	|--------| 1FE0:0000, 1FC0:0000 or 1F80:0000
 ;	|        |
-;	|        |
+;	|    ----| 1F00:0800 bottom of private stack
 ;	|        |
 ;	|        |
 ;	|        |
@@ -31,7 +31,8 @@
 ;	+--------+
 
 ;%define MULTI_SEC_READ  1
-%define DO_INIT_ON_ERROR 1
+;%define DO_INIT_ON_ERROR 1
+%define PRIVATE_STACK 1
 
 		CPU 8086
 
@@ -105,22 +106,26 @@ real_start:
 ;cont:
 		push	si
 		cld
-; ensure ds == 0 (required, unforunately)
-		xor	cx, cx
-		mov	ds, cx
+%ifdef PRIVATE_STACK
+		mov	ax, 1f00h
+		mov	ss, ax
+		mov	sp, 0800h
+%endif
+		xor	cx, cx		; clear cx for further use
+		mov	ds, cx		; ensure ds=0 (may not be required)
 		mov	word [BOOTPART_SCRATCHPAD], si
-		mov	dl, byte [DISK_BOOT]
+		mov	al, byte [DISK_BOOT]
 		push	cs
 		pop	ds
 
-		mov	[drive], dl     ; BIOS passes drive number in DL
-		and	dl, 7fh
-		mov	[readDAUA], dl	; LBA mode DAUA
+		mov	[drive], al     ; BIOS passes drive number in DL
+		and	al, 7fh
+		mov	[readDAUA], al	; LBA mode DAUA
+		mov	ah, 8eh			; SASI/IDE HDD `half-height' mode
+		int	1bh
 
 		mov	ah, 0ch			; CRT start (TEXT)
 		int	18h
-		mov	ah, 8eh			; SASI/IDE HDD `half-height' mode
-		int	1bh
 
 ;                call    print
 ;                db      "Loading ",0
