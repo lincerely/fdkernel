@@ -118,7 +118,7 @@ real_start:
 		push	cs
 		pop	ds
 
-		mov	[drive], al     ; BIOS passes drive number in DL
+		mov	[drive], al
 		and	al, 7fh
 		mov	[readDAUA], al	; LBA mode DAUA
 		mov	ah, 8eh			; SASI/IDE HDD `half-height' mode
