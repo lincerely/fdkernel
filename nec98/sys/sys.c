@@ -33,26 +33,30 @@
 */
 #define STORE_BOOT_INFO
 
-#define DEBUG
-/* #define DDEBUG */
-
 #define SYS_VERSION "v2.5"
 #define SYS98_VERSION "20180527"
 
 #include <stdlib.h>
+#ifndef __GNUC__
 #include <dos.h>
+#endif
 #include <ctype.h>
+#ifndef __GNUC__
 #include <fcntl.h>
 #include <sys/stat.h>
+#endif
 #ifdef __TURBOC__
 #include <mem.h>
 #else
+# ifndef __GNUC__
 #include <memory.h>
+# endif
 #endif
 #include <string.h>
 #ifdef __TURBOC__
 #include <dir.h>
 #endif
+
 #define SYS_MAXPATH   260
 #include "portab.h"
 #if !defined(__WATCOMC__)
@@ -74,7 +78,163 @@ extern WORD CDECL sprintf(BYTE * buff, CONST BYTE * fmt, ...);
 #endif
 
 #ifndef __WATCOMC__
+# ifdef __GNUC__
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#define O_BINARY 0
+#define stricmp strcasecmp
+#define memicmp strncasecmp
+union REGS {
+  struct {
+    unsigned char al, ah, bl, bh, cl, ch, dl, dh;
+  } h;
+  struct {
+    unsigned short ax, bx, cx, dx, si, di, cflag;
+  } x;
+};
+struct SREGS {
+  unsigned short ds, es;
+};
+struct _diskfree_t {
+  unsigned short avail_clusters, sectors_per_cluster, bytes_per_sector;
+};
+
+int int86(int ivec, union REGS *in, union REGS *out)
+{
+  /* must save sp for int25/26 */
+  asm("mov %5, (1f+1); jmp 0f; 0:mov %%di, %%dx; mov %%sp, %%di;"
+      "1:int $0x00; mov %%di, %%sp; sbb %0, %0" :
+      "=r"(out->x.cflag),
+      "=a"(out->x.ax), "=b"(out->x.bx), "=c"(out->x.cx), "=d"(out->x.dx) :
+      "q"((unsigned char)ivec), "a"(in->x.ax), "b"(in->x.bx),
+      "c"(in->x.cx), "D"(in->x.dx), "S"(in->x.si) :
+      "cc", "memory");
+  return out->x.ax;
+}
+
+int intdos(union REGS *in, union REGS *out)
+{
+  return int86(0x21, in, out);
+}
+
+int intdosx(union REGS *in, union REGS *out, struct SREGS *s)
+{
+  asm("push %%ds; mov %%bx, %%ds; int $0x21; pop %%ds; sbb %0, %0":
+      "=r"(out->x.cflag), "=a"(out->x.ax) :
+      "a"(in->x.ax), "c"(in->x.cx), "d"(in->x.dx),
+      "D"(in->x.di), "S"(in->x.si), "b"(s->ds), "e"(s->es) :
+      "cc", "memory");
+  return out->x.ax;
+}
+
+unsigned _dos_allocmem(unsigned size, unsigned *seg)
+{
+  union REGS in, out;
+  in.h.ah = 0x48;
+  in.x.bx = size;
+  unsigned ret = intdos(&in, &out);
+  if (!out.x.cflag)
+  {
+    *seg = ret;
+    ret = 0;
+  }
+  return ret;
+}
+
+unsigned _dos_freemem(unsigned seg)
+{
+  union REGS in, out;
+  struct SREGS s;
+  in.h.ah = 0x49;
+  s.es = seg;
+  return intdosx(&in, &out, &s);
+}
+
+unsigned int _dos_getdiskfree(unsigned int drive,
+                              struct _diskfree_t *diskspace)
+{
+  union REGS in, out;
+  in.x.ax = 0x3600;
+  in.x.dx = drive;
+  unsigned ret = intdos(&in, &out);
+  diskspace->avail_clusters = out.x.bx;
+  diskspace->sectors_per_cluster = out.x.dx;
+  diskspace->bytes_per_sector = out.x.cx;
+  return ret;
+}
+
+long filelength(int fhandle)
+{
+  long ret = lseek(fhandle, 0, SEEK_END);
+  lseek(fhandle, 0, SEEK_SET);
+  return ret;
+}
+
+struct find_t {
+  char reserved[21];
+  unsigned char attrib;
+  unsigned short wr_time;
+  unsigned short wr_date;
+  unsigned long size;
+  char filename[13];
+};
+#define _A_NORMAL 0x00
+#define _A_HIDDEN 0x02
+#define _A_SYSTEM 0x04
+
+int _dos_findfirst(const char *file_name, unsigned int attr,
+                   struct find_t *find_tbuf)
+{
+  union REGS in, out;
+  in.h.ah = 0x4e;
+  in.x.dx = FP_OFF(file_name);
+  in.x.cx = attr;
+  intdos(&in, &out);
+  if (out.x.cflag)
+    return out.x.ax;
+  memcpy(find_tbuf, (void *)0x80, sizeof(*find_tbuf));
+  return 0;
+}
+
+void _dos_getdrive(unsigned *drive)
+{
+  union REGS in, out;
+  in.h.ah = 0x19;
+  intdos(&in, &out);
+  *drive = out.h.ah;
+  return;
+}
+
+unsigned _dos_getftime(int handle, unsigned *dosdate, unsigned *dostime)
+{
+  union REGS in, out;
+  in.x.ax = 0x5700;
+  in.x.bx = handle;
+  intdos(&in, &out);
+  if (out.x.cflag)
+    return out.x.ax;
+  *dosdate = out.x.dx;
+  *dostime = out.x.cx;
+  return 0;
+}
+
+unsigned _dos_setftime(int handle, unsigned dosdate, unsigned dostime)
+{
+  union REGS in, out;
+  in.x.ax = 0x5701;
+  in.x.bx = handle;
+  in.x.cx = dostime;
+  in.x.dx = dosdate;
+  intdos(&in, &out);
+  if (out.x.cflag)
+    return out.x.ax;
+  return 0;
+}
+# else
 #include <io.h>
+# endif
 #else
 #include <stdio.h>
 int unlink(const char *pathname);
@@ -117,6 +277,10 @@ int stat(const char *file_name, struct stat *buf)
 }
 #endif
 
+
+#define DEBUG
+/* #define DDEBUG */
+
 BYTE pgm[] = "SYS";
 
 void put_boot(COUNT, BYTE *, BOOL);
@@ -128,7 +292,7 @@ BOOL isNEC98(void);
 static BOOL is_fd(COUNT);
 
 #define MAX_SEC_SIZE    (512 * 8)
-#define COPY_SIZE	0x7e00
+#define COPY_SIZE	0x4000  /* 0x7e00 ... too large for ia16-elf-gcc + newlib16 */
 
 #ifdef _MSC_VER
 #pragma pack(1)
@@ -573,7 +737,7 @@ void reset_drive(int DosDrive);
 #pragma aux reset_drive = \
       "push ds" \
       "inc dx" \
-      "mov ah, 0xd" \ 
+      "mov ah, 0xd" \
       "int 0x21" \
       "mov ah,0x32" \
       "int 0x21" \
@@ -581,7 +745,7 @@ void reset_drive(int DosDrive);
       parm [dx] \
       modify [ax bx];
 #else
-int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno, unsigned sector, unsigned count)
+unsigned int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno, unsigned sector, unsigned count)
 {
   union REGS regs;
 
@@ -590,13 +754,12 @@ int2526readwrite(int DosDrive, void *diskReadPacket, unsigned intno, unsigned se
   regs.x.cx = count;
   regs.x.dx = sector;
 
-  int86x(intno, &regs, &regs);
+  int86(intno, &regs, &regs);
 
   return regs.x.cflag;
 }
 
-
-fat32readwrite(int DosDrive, void *diskReadPacket, unsigned intno)
+unsigned fat32readwrite(int DosDrive, void *diskReadPacket, unsigned intno)
 {
   union REGS regs;
 
@@ -732,7 +895,7 @@ unsigned getextdrivespace(void *drivename, void *buf, unsigned buf_size)
 
   regs.x.cx = buf_size;
 
-  int86x(0x21, &regs, &regs, &sregs);
+  intdosx(&regs, &regs, &sregs);
   return regs.x.ax == 0x7300 || regs.x.cflag;
 }
 
@@ -1295,7 +1458,7 @@ BOOL copy(COUNT drive, BYTE * srcPath, BYTE * rootPath, BYTE * file)
     setftime(fdout, &ftime);
   }
 #endif
-#ifdef __WATCOMC__
+#if defined __WATCOMC__ || defined __GNUC__
   {
     unsigned date, time;	  
     _dos_getftime(fdin, &date, &time);
