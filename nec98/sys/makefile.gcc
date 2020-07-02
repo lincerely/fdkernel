@@ -30,8 +30,8 @@ production:     bin2c.exe ..$(DIRSEP)bin$(DIRSEP)sys.com
 bin2c.exe: $(BASEDIR)sys$(DIRSEP)bin2c.c
 		$(CLC) $(MK_DEP)
 
-#..$(DIRSEP)bin$(DIRSEP)sys.com: sys.com
-..$(DIRSEP)bin$(DIRSEP)sys.com: sys.exe
+#..$(DIRSEP)bin$(DIRSEP)sys.com: sys.exe
+..$(DIRSEP)bin$(DIRSEP)sys.com: sys.com
 		$(CP) $(MK_DEP) $(MK_TGT)
 
 b_fat12.h:	../boot/b_fat12.bin bin2c.exe
