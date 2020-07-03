@@ -6,6 +6,10 @@
 
 include ../mkfiles/gcc.mak
 
+ifdef XUPX
+XUPXSYS=$(XUPX) $@
+endif
+
 BASEDIR=..$(DIRSEP)..$(DIRSEP)
 HDRD=$(BASEDIR)hdr$(DIRSEP)
 KSRCD=$(BASEDIR)kernel$(DIRSEP)
@@ -58,7 +62,7 @@ talloc.obj:     $(SRCD)talloc.c
 
 sys.com:        $(SYS_EXE_dependencies)
 		$(CL) $(CFLAGST) $(TINY) $(SYS_EXE_dependencies) -li86
-#		$(CL) -zq-bt=DOS $(TINY) -fe=$(MK_TGT) $(SYS_EXE_dependencies)
+		$(XUPXSYS)
 
 sys.exe:        $(SYS_EXE_dependencies)
 		$(CL) $(CFLAGST) -mcmodel=small $(SYS_EXE_dependencies) -li86

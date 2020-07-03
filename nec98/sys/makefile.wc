@@ -6,6 +6,10 @@
 
 !include "../mkfiles/generic.mak"
 
+ifdef XUPX
+XUPXSYS=$(XUPX) $@
+endif
+
 BASEDIR=..$(DIRSEP)..$(DIRSEP)
 HDRD=$(BASEDIR)hdr$(DIRSEP)
 KSRCD=$(BASEDIR)kernel$(DIRSEP)
@@ -55,8 +59,8 @@ talloc.obj:     $(SRCD)talloc.c
 	$(CC) $(CFLAGS) $[@
 
 sys.com:        $(SYS_EXE_dependencies)
-		$(CL) -zq-bt=DOS $(TINY) -fe=$^@ $(SYS_EXE_dependencies)
-#		$(CL) $(CFLAGST) $(TINY) -fe=$^@ $(SYS_EXE_dependencies)
+		$(CL) -fe=$^@ -zq-zp1-os-s-we-e3-wx-bt=DOS $(TINY) $(SYS_EXE_dependencies)
+		$(XUPXSYS)
 
 clobber:	clean
 		-$(RM) bin2c.exe bin2c.com sys.com b_fat*.h fat*.h oemfat*.h
