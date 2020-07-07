@@ -26,12 +26,20 @@
 ; Cambridge, MA 02139, USA.
 ;
 
+%define FD_DBLBUF 1
 
 LOADSEG		equ	0060h
 FATBUF		equ	2000h	; offset of temporary buffer for FAT chain
 
-_SS		equ	1400h
-_SP		equ	((1f00h - _SS) << 4) - 1
+FDBUFSEG	equ	1E00h
+FDBUFLENGTH	equ	2048
+_SS		equ	(FDBUFSEG + (FDBUFLENGTH / 16))
+STACKLENGTH	equ	256
+STACKLIMITSEG	equ	1f00h
+%if ((_SS + ((STACKLENGTH+15) / 16)) > STACKLIMITSEG)
+  %error stack for FD-loader not enough
+%endif
+_SP		equ	(STACKLENGTH)
 DISK_BOOT	equ	0584h	; seg=0000h
 BOOTPART_SCRATCHPAD	equ	03feh;
 
@@ -490,7 +498,7 @@ readDisk:
 	mov	al, byte [bsHeads]
 	mov	cx, [bsSecPerTrack]
 	mul	cl
-	mov	bp, ax		; bx = s * h
+	xchg	ax, bp		; bp = s * h
 	pop	ax
 	div	bp
 	mov	[.rd_c], al
@@ -500,13 +508,38 @@ readDisk:
 	mov	dl, ah
 	mov	ah, 46h			; READ DATA: MFM, err-retry
 	mov	cx, [.rd_c]
+  %ifdef FD_DBLBUF
+	or	ah, 10h			; with SEEK (always: to shrink code size)
+  %else
 	cmp	cl, [.rd_cp]
 	je	short .rd1s_2
-	or	ah, 10h			; with SEEK
+	or	ah, 10h			; with SEEK (if needed)
 	mov	[.rd_cp], cl
 .rd1s_2:
+  %endif
 	;mov	dx, [.rd_s]
 	inc	dl
+  %ifdef FD_DBLBUF
+	push	si
+	push	di
+	push	ds
+	mov	di, bx
+	mov	bx, [sysPhysicalBPS]
+	push	es
+	; read into the temporary buffer (to avoid DMA 64K-boundary overrun)
+	les	bp, [.fdbuf_dw]
+	mov	al, [bsDriveNumber]	; DA/UA
+	int	1bh
+	pop	es
+	;jc	.rd1s_exit
+	mov	cx, bx
+	lds	si, [.fdbuf_dw]
+	rep	movsb
+.rd1s_exit:
+	pop	ds
+	pop	di
+	pop	si
+  %else
 	mov	bp, [sysPhysicalBPS]
 	xchg	bx, bp
 	;mov	bx, [sysPhysicalBPS]
@@ -514,6 +547,7 @@ readDisk:
 .rd1s_2x:
 	mov	al, [bsDriveNumber]	; DA/UA
 	int	1bh
+  %endif
 %if 0
 	jnc	.rd1s_exit	; Init Device when error.
 	mov	ah, 3
@@ -529,6 +563,9 @@ readDisk:
 	pop	ax
 	ret
 
+.fdbuf_dw:
+.fdbuf_off	dw	0
+.fdbuf_seg	dw	FDBUFSEG
 .rd_cp		db	0
 .rd_c		db	0
 .rd_sl		db	(256 - 7 - 1)
@@ -604,9 +641,6 @@ readDisk:
 		jnz	.read_next		; continue
 
 		clc
-		ret
-%else
-		stc
 		ret
 %endif
 
