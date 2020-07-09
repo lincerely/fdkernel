@@ -34,7 +34,7 @@
 #define STORE_BOOT_INFO
 
 #define SYS_VERSION "v2.5"
-#define SYS98_VERSION "20180527"
+#define SYS98_VERSION "20200707"
 
 #include <stdlib.h>
 #include <dos.h>
