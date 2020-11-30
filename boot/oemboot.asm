@@ -223,7 +223,20 @@ Entry:          jmp     short real_start
                 db 0x29         ; extended boot record id
                 dd 0x12345678   ; volume serial number
                 db 'NO NAME    '; volume label
-                db 'FAT12   '   ; filesystem id
+                times   36h - ($ - $$) db 0
+                ; The filesystem ID is used by lDOS's instsect (by ecm)
+                ;  by default to validate that the filesystem matches.
+%ifdef ISFAT12
+                db "FAT12"     ; filesystem id
+ %ifdef ISFAT16
+ %error Must select one FS
+ %endif
+%elifdef ISFAT16
+                db "FAT16"
+%else
+ %error Must select one FS
+%endif
+                times   3Eh - ($ - $$) db 32
 
 ;-----------------------------------------------------------------------
 ;   ENTRY
@@ -460,8 +473,8 @@ cluster_next:   lodsw                   ; AX = next cluster to read
 ; failed to boot
 boot_error:     
 call            show
-;               db      "Error! Hit a key to reboot."
-                db      "):."
+;               db      "Error! Hit a key to reboot.",0
+                db      "):",0
 %ifdef LOOPONERR
 jmp $
 %else
@@ -488,13 +501,14 @@ load_next:      dec     ax                      ; cluster numbers start with 2
 
 ; shows text after the call to this function.
 
+show.do_show:
+                mov     ah, 0Eh                 ; show character
+                int     10h                     ; via "TTY" mode
 show:           pop     si
                 lodsb                           ; get character
                 push    si                      ; stack up potential return address
-                mov     ah,0x0E                 ; show character
-                int     0x10                    ; via "TTY" mode
-                cmp     al,'.'                  ; end of string?
-                jne     show                    ; until done
+                cmp     al, 0                   ; end of string?
+                jne     .do_show                ; until done
                 ret
 
 
@@ -516,7 +530,7 @@ readDisk:       push    si                      ; preserve cluster #
                 mov     word [LBA_OFF], bx
 
                 call    show
-                db      "."
+                db      ".",0
 read_next:
 
 ; initialize constants
