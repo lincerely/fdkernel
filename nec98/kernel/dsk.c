@@ -263,6 +263,23 @@ COUNT ASMCFUNC FAR blk_driver(rqptr rp)
   }
 }
 
+#if defined NEC98
+STATIC BOOL is_daua_exact_hd(UBYTE daua)
+{
+  switch(daua & 0x78)
+  {
+    case 0x00:  /* SASI/ESDI/IDE */
+      if ((daua & 7) <= 3)
+        return *(UBYTE FAR *)MK_FP(0, 0x55d) & (1 << (daua & 3));
+      break;
+    case 0x20: /* SCSI */
+      return *(UBYTE FAR *)MK_FP(0, 0x482) & (1 << (daua & 7));
+  }
+  return 0;
+}
+
+#endif
+
 #if defined(NEC98)
 #define play_dj_nec98 play_dj
 STATIC WORD play_dj_nec98(ddt * pddt)
@@ -342,7 +359,7 @@ STATIC WORD diskchange(ddt * pddt)
 
   /* can not detect or error... */
 #if defined(NEC98)
-  if (is_daua_hd(pddt->ddt_driveno))
+  if (is_daua_exact_hd(pddt->ddt_driveno))
     return M_NOT_CHANGED;
 
   if (is_daua_IF1M(pddt->ddt_driveno)) {
@@ -572,6 +589,9 @@ STATIC WORD getbpb(ddt * pddt)
   bpb *pbpbarray = &pddt->ddt_bpb;
   unsigned secs_per_cyl;
   WORD ret;
+#if defined NEC98
+  BOOL is_hd = is_daua_exact_hd(pddt->ddt_driveno);
+#endif
 
   /* pddt->ddt_descflags |= DF_NOACCESS; 
    * disabled for now - problems with FORMAT ?? */
@@ -605,9 +625,15 @@ STATIC WORD getbpb(ddt * pddt)
 /*TE ~ 200 bytes*/
 
 #if defined(NEC98)
-  if (DiskTransferBuffer[0x26] == 0x29 || is_daua_hd(pddt->ddt_driveno))
-#endif
+  memcpy(pbpbarray, &pddt->ddt_defbpb, sizeof(bpb));
+  if (DiskTransferBuffer[0x26] == 0x29)
+  {
+    /* copy FAT1x extended BPB */
+    memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], 0x24 - 0x0b);
+  }
+#else
   memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], sizeof(bpb));
+#endif
 
   /*?? */
   /*  2b is fat16 volume label. if memcmp, then offset 0x36.
@@ -627,39 +653,57 @@ STATIC WORD getbpb(ddt * pddt)
   if (DiskTransferBuffer[0x26] != 0x29)
 #endif
   {
+#if defined NEC98
+    /* FAT12/16 without extended BPB (DOS 2~3) */
     UBYTE b0, b1, b2;
     b0 = DiskTransferBuffer[0];
     b1 = DiskTransferBuffer[1];
     b2 = DiskTransferBuffer[2];
-    /* non-extended boot record */
+    /* memcpy(pbpbarray, &pddt->ddt_defbpb, sizeof(bpb)); */
     pbpbarray->bpb_huge = 0;
-#if defined(NEC98)
     pbpbarray->bpb_hidden = 0;
-    if (pbpbarray->bpb_mdesc == 0xf8)
+    if (is_hd)
     {
-      /* todo */
+      /* todo
+      
+        for MY information...
+        
+        # NEC MS-DOS 3.3D PBR (boot sector) for HD
+        offset type    description
+        0000h  3bytes  jmp to actucal bootloader (EB 1F 90)
+        0003h  8bytes  00 (OEM name for common boot sector)
+        000Bh  13bytes BPB (bpb_nbyte to bpb_nfsect)
+                       note: bpb_nbyte is 1024 or 2048, which differs from bytes per physical sector of the drive (256 or 512)
+        --- information about the parttion (guess, used only in the bootloader) --
+        0018h  dword   LBA of the parition (by physical sector)
+        001Ch  word    offset of data area in the partition (by phsical sector)
+        001Eh  word    bytes per physical sector (256 or 512, for HD)
+        0021h  byte    unknown (00)
+      */
+      /* copy minimal FAT info (bpb_nbyte to bpb_nfsect) from the DOS 3.x partition */
+      memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], 0x18 - 0x0b);
+# if 0
       if (b0 == 0xe9 && b1 == 0x1f && b2 == 0x90)
       {
-        /* DOS 3.x HD (SASI/IDE) PBR, maybe */
-        pbpbarray->bpb_nsecs = 0;
-        pbpbarray->bpb_nheads = 0;
         pbpbarray->bpb_hidden = *(ULONG *)&DiskTransferBuffer[0x18];
       }
-      if (pbpbarray->bpb_nheads == 0)
-        pbpbarray->bpb_nheads = 1;  /* workaround for NEC98 HD boot record */
+# endif
     }
     else
     {
-      /* DOS 3.x (or below) FD : partly usable */
+      /* DOS 3.x (or below) FD : partly usable (bpb_nbyte to the low word of bpb_hidden) */
       if (b0 == b1 && b1 == b2 /* && (b0 == 0xff || b0 == 0xf6 || b0 == 0xe5) */)
       {
         /* guess "blank" (formatted physically but not installed fat) */
+        /* todo: mount 'informal' FAT disk (which doesn't have correct BPB) */
+        /*       (guess checking 1st byte of FAT in the disk is needed,,,) */
         tmark(pddt);
         return failure(E_MEDIA);
       }
-      memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], 0x1c - 0x0b);
+      memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], 0x1e - 0x0b);
     }
 #else
+    pbpbarray->bpb_huge = 0;
     pbpbarray->bpb_hidden &= 0x0000ffffUL;  /* old bpb: stored in word */
 #endif
     
@@ -671,6 +715,9 @@ STATIC WORD getbpb(ddt * pddt)
   else
   {
     struct FS_info *fs = (struct FS_info *)&DiskTransferBuffer[0x27];
+#if defined NEC98
+    memcpy(pbpbarray, &DiskTransferBuffer[BT_BPB], sizeof(bpb));
+#endif
 #ifdef WITHFAT32
     if (pbpbarray->bpb_nfsect == 0)
     {
@@ -682,6 +729,16 @@ STATIC WORD getbpb(ddt * pddt)
     memcpy(pddt->ddt_volume, fs->volume, sizeof fs->volume);
     memcpy(pddt->ddt_fstype, fs->fstype, sizeof fs->fstype);
   }
+
+#if defined NEC98
+  if (is_hd)
+  {
+    /* To be safe, use default geometry for 'fixed' (non-removable) drives */
+    pbpbarray->bpb_nheads = pddt->ddt_defbpb.bpb_nheads;
+    pbpbarray->bpb_nsecs = pddt->ddt_defbpb.bpb_nsecs;
+    pbpbarray->bpb_hidden = pddt->ddt_defbpb.bpb_hidden;
+  }
+#endif
 
 #ifdef DSK_DEBUG
   printf("DDT_DRIVENO   = %02x\n", pddt->ddt_driveno);
