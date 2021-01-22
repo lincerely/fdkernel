@@ -970,9 +970,17 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   driveParam->chs.Cylinder = regs.c.x;
   driveParam->sector_size = regs.b.x;
   if (is_daua_sasi(drive))
+  {
+    if (InitKernelConfig.ForceLBA)
+      driveParam->descflags = DF_LBA;
     SasiSectorBytes[drive & 3] = driveParam->sector_size;
+  }
   else if (is_daua_scsi(drive))
+  {
+    if (InitKernelConfig.ForceLBA)
+      driveParam->descflags = DF_LBA;
     ScsiSectorBytes[drive & 7] = driveParam->sector_size;
+  }
 
   if (maxsecsize < driveParam->sector_size)
     maxsecsize = driveParam->sector_size;
@@ -986,7 +994,9 @@ STATIC int LBA_Get_Drive_Parameters_nec98(int drive, struct DriveParamS *drivePa
   }
 #endif
 
+#if !defined(NEC98)
   if (!(driveParam->descflags & DF_LBA))
+#endif
   {
     driveParam->total_sectors =
         (ULONG)driveParam->chs.Cylinder
