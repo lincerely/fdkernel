@@ -285,10 +285,11 @@ static void write_header(FILE *dest, size_t size)
     0,                        /* DLASortByDriveNo            db 0  */
     1,                        /* InitDiskShowDriveAssignment db 1  */
     2,                        /* SkipConfigSeconds           db 2  */
-    0,                        /* ForceLBA                    db 0  */
 #if defined(NEC98) || defined(FOR_NEC98)
+    1,                        /* ForceLBA                    db 1  */
     0,                        /* GlobalEnableLBAsupport      db 0  */
 #else
+    0,                        /* ForceLBA                    db 0  */
     1,                        /* GlobalEnableLBAsupport      db 1  */
 #endif
     0,                        /* BootHarddiskSeconds               */
