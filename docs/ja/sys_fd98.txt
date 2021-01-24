@@ -135,11 +135,25 @@ FreeDOS(98)のSYSコマンドはFreeDOS(98)だけでなく、MS-DOS（バージョン3.1以上）やWi
                         CONFIG.SYSが処理されるようになります（0 と同じ）。
                         （初期設定値は 2）
 
+  FORCELBA              ハードディスクアクセス時のLBAモード使用
+
+       1        LBAモードを常に使用します。
+                （2021-01-22以降の初期設定値）
+
+       0        CHSモードを使用します。（以前の初期設定値）
+                PC-98シリーズのハードディスクBIOSはLBAモードを標準サポート
+                しているため、特別な事情がない限り、0に設定する必要は
+                ありません。
+
   GLOBALENABLELBASUPPORT
-                        （実験的サポート）IBM PC互換のDOS領域認識
+                        IBM PC互換のDOS領域認識
+                        ※本機能は試験的に実装されたものです。実際の機能と
+                        設定の名称が異なることもあり、今後別名になる可能性が
+                        あります。
 
        1        IBM PC系DOS用に初期化されたHD内のDOS領域を認識するように
-                なります。（8086対応FAT32カーネルでは未サポート）
+                なります。（現在、8086対応FAT32カーネルでは未サポート）
+                FORCELBAも1に設定してください。
 
        0        NEC/EPSON系MS-DOSの拡張フォーマットされたHDのみを認識します。
                 （初期設定値）
@@ -149,7 +163,7 @@ FreeDOS(98)のSYSコマンドはFreeDOS(98)だけでなく、MS-DOS（バージョン3.1以上）やWi
   SYS CONFIG \kernel.sys dla=0x82
         ドライブ文字割り当て方式をHD優先に変更。
 
-  SYS CONFIG \kernel.sys glo=1 sho=1 ski=5
+  SYS CONFIG \kernel.sys for=1 glo=1 sho=1 ski=5
         IBM PC系DOS互換のHD領域を認識できるように変更し、起動時に
         割り当て状況を表示、CONFIG.SYSの処理待ちを5秒に設定。
 
