@@ -72,7 +72,7 @@ STATIC int iskanji(unsigned char c)
 }
 STATIC int iskanji2(unsigned char c)
 {
-  return c>=0x40 && c<=0xfc && c!=0x7f;
+  return !((c>=0x07&&c<=0x0d) || c==0x1a || c==0x1b || c==0x1e);
 }
 #endif
 
@@ -98,7 +98,7 @@ STATIC UWORD sjis2jis(UWORD c)
     else
       h -= 0x160;
   }
-  if(l < 0x7f)
+  if(l <= 0x7f)
     l -= 0x1f;
   else if(l < 0x9f)
     l -= 0x20;
@@ -907,13 +907,14 @@ VOID ASMCFUNC int29_main(UBYTE c)
 
   if(KANJI2_WAIT && iskanji2(c))
   {
-    UWORD k;
+    UWORD k, cc;
     int is_half;
 
     x = CURSOR_X;
     y = CURSOR_Y;
-    k = sjis2jis(((UWORD)KANJI1_CODE << 8) | c) - 0x2000;
-    is_half = (k > 0x0920 && k <= 0x0b7f); /* SJIS 0x8540..0x869f, maybe */
+    cc = ((UWORD)KANJI1_CODE << 8) | c;
+    k = sjis2jis(cc) - 0x2000;
+    is_half = (cc >= 0x8500 && cc <= 0x869e) || c == 0x1f; /* for compatiblity with NEC MS-DOS' standard console */
     k = (k << 8) | (k >> 8);
 
     if (x+1 == width && !is_half) { /* wraparound for full width character */
