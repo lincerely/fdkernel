@@ -1127,9 +1127,6 @@ PartitionsField ScanForPrimaryPartitions(struct DriveParamS * driveParam,
   {
     if (ptype == PARTITION_TYPE_NEC98)
     {
-      if (pEntry->Bootable != 0x20                /* 20h; MS-DOS UnBootable Partition (pc98) */
-          && (pEntry->Bootable & ~0xf) != 0xa0)   /* Axh; MS-DOS Bootable Partition (pc98) */
-        continue;
 #if defined(WITHFAT32)
       if (pEntry->FileSystem != 0x81 && pEntry->FileSystem != 0x91 && pEntry->FileSystem != 0xa1 && pEntry->FileSystem != 0xe1)	/* 81h or 91h; MS-DOS Active Partition (pc98) */
         continue;
@@ -1149,9 +1146,6 @@ PartitionsField ScanForPrimaryPartitions(struct DriveParamS * driveParam,
 
     if (ptype == PARTITION_TYPE_NEC98)
     {
-      if (scan_type == SCAN_PRIMARYBOOT && pEntry->Bootable == 0x20)
-        continue;
-
       partitionStart = pEntry->RelSect;
     }
     else
