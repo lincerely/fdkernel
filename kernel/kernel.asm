@@ -407,7 +407,8 @@ _nul_dev:           ; 0022 device chain root
                 global  _njoined
 _njoined        db      0               ; 0034 number of joined devices
                 dw      0               ; 0035 DOS 4 pointer to special names (always zero in DOS 5)
-setverPtr       dw      0,0             ; 0037 setver list
+                global  _setverPtr
+_setverPtr      dw      0,0             ; 0037 setver list
                 dw      0               ; 003B cs offset for fix a20
                 dw      0               ; 003D psp of last umb exec
                 global _LoL_nbuffers
@@ -482,7 +483,6 @@ instance_table: ; should include stacks, Win may auto determine SDA region
                 dw 0, seg _DATASTART ; [SEG:OFF] address of region's base
                 dw markEndInstanceData wrt seg _DATASTART ; size in bytes
                 dd 0 ; 0 marks end of table
-patch_bytes:         ; mark end of array of offsets of critical section bytes to patch
                 dw 0 ; and 0 length for end of instance_table entry
                 global  _winPatchTable
 _winPatchTable: ; returns offsets to various internal variables
@@ -491,11 +491,11 @@ _winPatchTable: ; returns offsets to various internal variables
                 dw save_BX     ; where BX stored during int21h dispatch
                 dw _InDOS      ; offset of InDOS flag
                 dw _MachineId  ; offset to variable containing MachineID
-                dw patch_bytes ; offset of to array of offsets to patch
+                dw _CritPatch  ; offset of to array of offsets to patch
                                ; NOTE: this points to a null terminated
                                ; array of offsets of critical section bytes
-                               ; to patch, for now we just point this to
-                               ; an empty table, purposely not _CritPatch
+                               ; to patch, for now we can just point this
+                               ; to an empty table
                                ; ie we just point to a 0 word to mark end
                 dw _uppermem_root ; seg of last arena header in conv memory
                                   ; this matches MS DOS's location, but 
@@ -575,13 +575,15 @@ _net_name       db      '               ' ;-27 - 15 Character Network Name
                 global  _return_code
                 global  _internal_data
 
+; ensure offset of critical patch table remains fixed, some programs hard code offset
+                times (0315h - ($ - DATASTART)) db 0
                 global  _CritPatch
-_CritPatch      dw      0d0ch           ;-11 zero list of patched critical
-                dw      0d0ch           ;    section variables
-                dw      0d0ch
-                dw      0d0ch
-                dw      0d0ch
-                db      0               ;-01 - unknown
+_CritPatch      dw      0               ;-11 zero list of patched critical
+                dw      0               ;    section variables
+                dw      0               ;    DOS puts 0d0ch here but some
+                dw      0               ;    progs really write to that addr.
+                dw      0               ;-03 - critical patch list terminator
+                db      90h             ;-01 - unused, NOP pad byte
 _internal_data:              ; <-- Address returned by INT21/5D06
 _ErrorMode      db      0               ; 00 - Critical Error Flag
 _InDOS          db      0               ; 01 - Indos Flag

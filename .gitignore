@@ -48,6 +48,8 @@ bin/COMMAND.COM
 bin/command.com
 bin/COUNTRY.SYS
 bin/country.sys
+bin/SETVER.SYS
+bin/setver.sys
 
 # backup files
 *.orig

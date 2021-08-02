@@ -1,4 +1,4 @@
-rem @echo off
+@echo off
 rem batch file to build everything
 rem IF NOTHING COMPILES, CHECK IF YOUR CVS CHECKOUT USES CORRECT DOS LINEBREAKS
 
@@ -114,6 +114,13 @@ echo.
 echo Process KERNEL +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 echo.
 cd ..\kernel
+%MAKE% production
+if errorlevel 1 goto abort-cd
+
+echo.
+echo Process SETVER +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+echo.
+cd ..\setver
 %MAKE% production
 if errorlevel 1 goto abort-cd
 
