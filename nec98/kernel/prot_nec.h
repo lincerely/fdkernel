@@ -2,6 +2,8 @@
 # define PROTO_NEC_HEADER
 
 /* console.asm + conseg60.asm */
+# define USE_PUTCRT_SEG60 1
+
 # define ASMCON  ASMCFUNC
 # define ASMCON_FAR  FAR ASMCFUNC
 # define ASMCONPASCAL_FAR  FAR ASMPASCAL
@@ -32,10 +34,19 @@ UBYTE  ASMCONPASCAL_FAR nec98_crt_rollup_far(UBYTE linecnt);
 UBYTE  ASMCONPASCAL_FAR nec98_crt_rolldown_far(UBYTE linecnt);
 VOID  ASMCON_FAR nec98_crt_scroll_up_far(VOID);
 
-VOID ASMCON_FAR  nec98_clear_crt_all_far(VOID);
+VOID  ASMCON_FAR  nec98_clear_crt_all_far(VOID);
+
+VOID  ASMCONPASCAL_FAR nec98_put_crt_far(UBYTE x, UBYTE y, UWORD ccode);
+VOID  ASMCONPASCAL_FAR nec98_put_crt_wattr_far(UBYTE x, UBYTE y, UWORD ccode, UWORD attr);
+VOID  ASMCONPASCAL_FAR nec98_clear_crt_far(UBYTE x, UBYTE y);
+VOID  ASMCONPASCAL_FAR nec98_set_curpos_far(UBYTE x, UBYTE y);
+UWORD  ASMCONPASCAL_FAR nec98_show_hide_cursor_far(UBYTE showhide);
+VOID   ASMCONPASCAL_FAR nec98_update_cursor_view_far(VOID);
+
+UWORD  ASMCONPASCAL_FAR nec98_sjis2jis_far(UWORD sjis);
 
 
-/* console.asm + conseg60.asm */
+/* kernel.asm + supseg60.asm */
 # define ASMSUP  ASMCFUNC
 # define ASMSUP_FAR  FAR ASMCFUNC
 # define ASMSUPPASCAL_FAR  FAR ASMPASCAL
@@ -66,6 +77,15 @@ VOID ASMSUPPASCAL_FAR nec98_sup_get_daua_list_far(VOID FAR *p);
 #pragma aux nec98_crt_scroll_up_far modify exact [ax dx]
 #pragma aux nec98_clear_crt_all_far modify exact [ax dx]
 
+#pragma aux (pascal) nec98_put_crt_far modify exact [ax]
+#pragma aux (pascal) nec98_put_crt_wattr_far modify exact [ax]
+#pragma aux (pascal) nec98_clear_crt_far modify exact [ax]
+#pragma aux (pascal) nec98_set_curpos_far modify exact [ax]
+#pragma aux (pascal) nec98_show_hide_cursor_far modify exact [ax]
+#pragma aux (pascal) nec98_update_cursor_view_far modify exact [ax]
+
+#pragma aux (pascal) nec98_sjis2jis_far modify exact [ax]
+
 #pragma aux (pascal) nec98_sup_get_scsi_devices_far modify exact [ax]
 #pragma aux nec98_sup_get_machine_type_far modify exact [ax]
 #pragma aux (pascal) nec98_sup_get_daua_list_far modify exact [ax]
@@ -79,6 +99,15 @@ VOID ASMSUPPASCAL_FAR nec98_sup_get_daua_list_far(VOID FAR *p);
 #define crt_rolldown  nec98_crt_rolldown_far
 #define crt_scroll_up  nec98_crt_scroll_up_far
 #define clear_crt_all  nec98_clear_crt_all_far
+
+#ifdef USE_PUTCRT_SEG60
+# define put_crt  nec98_put_crt_far
+# define put_crt_wattr  nec98_put_crt_wattr_far
+# define clear_crt  nec98_clear_crt_far
+# define set_curpos nec98_set_curpos_far
+# define update_cursor_view  nec98_update_cursor_view_far
+#endif
+
 
 #endif
 

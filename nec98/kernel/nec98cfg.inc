@@ -6,6 +6,7 @@
 %define BIG_SECTOR 1
 %define USE_PRIVATE_INT29_STACK 1
 %define USE_PRIVATE_INTDC_STACK 1
+%define USE_PUTCRT_SEG60 1
 ;-------------------------------
 
 

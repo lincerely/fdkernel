@@ -867,4 +867,295 @@ _nec98_clear_crt_all_far:
 		retf
 
 
+%ifdef USE_PUTCRT_SEG60
+
+; internal
+; input:
+; dl = X, dh = Y
+; (if dx==-1, cursor position is not update)
+; result:
+; dx = new cursor addr in text-vram
+nec98_update_curpos_noseg:
+		cmp	dx, 0ffffh
+		je	.update
+		mov	[_cursor_x], dl
+		mov	[_cursor_y], dh
+.update:
+		cmp	byte [_cursor_view], 0
+		je	.exit
+		mov	al, 80
+		mul	byte [_cursor_y]
+		add	al, [_cursor_x]
+		adc	al, 0
+		add	ax, ax
+		mov	dx, ax
+		mov	ah, 13h		; locate cursor position
+		int	18h
+.exit:
+		ret
+
+nec98_update_curpos:
+		push	ax
+		push	ds
+		mov	ax, 60h
+		mov	ds, ax
+		call	nec98_update_curpos_noseg
+		pop	ds
+		pop	ax
+		ret
+
+; VOID  ASMCONPASCAL_FAR nec98_set_curpos_far(UBYTE posx, UBYTE posy)
+		global	NEC98_SET_CURPOS_FAR
+NEC98_SET_CURPOS_FAR:
+		push	bp
+		mov	bp, sp
+arg_f posx, posy
+		push	dx
+		push	ds
+		mov	ax, 60h
+		mov	ds, ax
+		mov	dl, [.posx]
+		mov	dh, [.posy]
+		call	nec98_update_curpos_noseg
+		mov	ax, dx
+		pop	ds
+		pop	dx
+		pop	bp
+		retf	4
+
+
+nec98_show_hide_cursor:
+		push	dx
+		push	ds
+		mov	dx, 60h
+		mov	ds, dx
+		cmp	ax, -1
+		jnz	.l1
+		mov	al, [_cursor_view]	; do not modified if ax==ffffh
+.l1:
+		test	al, al
+		jnz	.show
+		mov	[_cursor_view], al
+		mov	ah, 12h
+		int	18h
+		jmp	short .exit
+.show:
+		mov	al, 1
+		mov	[_cursor_view], al
+		push	ax
+		mov	ah, 11h
+		int	18h
+		mov	dx, -1
+		call	nec98_update_curpos_noseg
+		pop	ax
+.exit:
+		pop	ds
+		pop	dx
+		ret
+
+; UWORD  ASMCONPASCAL_FAR nec98_show_hide_cursor_far(UBYTE showhide)
+		global	NEC98_SHOW_HIDE_CURSOR_FAR
+NEC98_SHOW_HIDE_CURSOR_FAR:
+		push	bp
+		mov	bp, sp
+arg_f showhide
+		mov	ax, [.showhide]
+		call	nec98_show_hide_cursor
+		pop	bp
+		retf	2
+
+; UWORD  ASMCONPASCAL_FAR nec98_update_cursor_view_far(VOID)
+		global	NEC98_UPDATE_CURSOR_VIEW_FAR
+NEC98_UPDATE_CURSOR_VIEW_FAR:
+		mov	ax, -1
+		call	nec98_show_hide_cursor
+		retf
+
+nec98_get_width:
+		push	ds
+		xor	ax, ax
+		mov	ds, ax
+		mov	al, [053ch]	; CRT_STS_FLAG
+		test	al, 2		; bit1: 0=80cols 1=40cols
+		mov	al, 80
+		jz	.exit
+		mov	al, 40
+.exit:
+		pop	ds
+		ret
+
+
+; internal
+; input:
+; ax = code, dl = X, dh = Y, cx=attr, flags:DF=0, ds=60h
+; result:
+; ax,dx:broken
+nec98_putcrta_noseg:
+		push	di
+		push	es
+		mov	es, [_text_vram_segment]
+		push	ax
+		mov	al, 80
+		mul	dh
+		mov	dh, 0
+		add	ax, dx
+		shl	ax, 1
+		mov	di, ax
+		pop	ax
+		stosw
+		add	di, 1ffeh
+		mov	ax, cx
+		stosw
+		pop	es
+		pop	di
+		ret
+
+; VOID ASMCONPASCAL_FAR  nec98_put_crt_far(UBYTE x, UBYTE y, UWORD ccode)
+		global	NEC98_PUT_CRT_FAR
+NEC98_PUT_CRT_FAR:
+		push	bp
+		mov	bp, sp
+arg_f posx, posy, ccode
+		push	cx
+		push	dx
+		push	ds
+		mov	cx, 60h
+		mov	ds, cx
+		mov	cl, [_put_attr]
+		mov	dl, [.posx]
+		mov	dh, [.posy]
+		mov	ax, [.ccode]
+		call	nec98_putcrta_noseg
+		pop	ds
+		pop	dx
+		pop	cx
+		pop	bp
+		retf	6
+
+; VOID ASMCONPASCAL_FAR  nec98_put_crt_wattr_far(UBYTE x, UBYTE y, UWORD ccode, UWORD attr)
+		global	NEC98_PUT_CRT_WATTR_FAR
+NEC98_PUT_CRT_WATTR_FAR:
+		push	bp
+		mov	bp, sp
+arg_f posx, posy, ccode, attr
+		push	cx
+		push	dx
+		push	ds
+		mov	cx, 60h
+		mov	ds, cx
+		mov	cl, [_put_attr]
+		mov	dl, [.posx]
+		mov	dh, [.posy]
+		mov	ax, [.ccode]
+		or	cx, [.attr]
+		call	nec98_putcrta_noseg
+		pop	ds
+		pop	dx
+		pop	cx
+		pop	bp
+		retf	8
+
+; VOID ASMCONPASCAL_FAR  nec98_clear_crt_far(UBYTE x, UBYTE y)
+		global	NEC98_CLEAR_CRT_FAR
+NEC98_CLEAR_CRT_FAR:
+		push	bp
+		mov	bp, sp
+arg_f posx, posy
+		push	cx
+		push	dx
+		push	ds
+		mov	ax, 60h
+		mov	ds, ax
+		xor	ch, ch
+		mov	dl, [.posx]
+		mov	dh, [.posy]
+		mov	al, [_clear_char]
+		mov	cl, [_clear_attr]
+		call	nec98_putcrta_noseg
+		pop	ds
+		pop	dx
+		pop	cx
+		pop	bp
+		retf	4
+
+;
+%if 0		; comment
+STATIC UWORD sjis2jis(UWORD c)
+{
+  UBYTE h = c >> 8;
+  UBYTE l = c;
+
+  if(h <= 0x9f)
+  {
+    h <<= 1;
+    if(l < 0x9f)
+      h -= 0xe1;
+    else
+      h -= 0xe0;
+  }
+  else
+  {
+    h <<= 1;
+    if(l < 0x9f)
+      h -= 0x161;
+    else
+      h -= 0x160;
+  }
+  if(l <= 0x7f)
+    l -= 0x1f;
+  else if(l < 0x9f)
+    l -= 0x20;
+  else
+    l -= 0x7e;
+
+  return ((UWORD)h << 8) | l;
+}
+%endif		; endcomment
+con_sjis2jis:
+		cmp	ah, 9fh
+		ja	.h_a0
+		shl	ah, 1
+		cmp	al, 9fh
+		jae	.h_9f_l_9f
+		sub	ah, 0e1h
+		jmp	short .l
+.h_9f_l_9f:
+		sub	ah, 0e0h
+		jmp	short .l
+.h_a0:
+		shl	ah, 1
+		cmp	al, 9fh
+		jae	.h_a0_l_9f
+		sub	ah, 61h
+		jmp	short .l
+.h_a0_l_9f:
+		sub	ah, 60h
+.l:
+		cmp	al, 7fh
+		ja	.l_80
+		sub	al, 1fh
+		jmp	short .hl
+.l_80:
+		cmp	al, 9fh
+		jae	.l_9f
+		sub	al, 20h
+		jmp	short .hl
+.l_9f:
+		sub	al, 7eh
+.hl:
+		ret
+
+; UWORD  ASMCONPASCAL_FAR nec98_sjis2jis_far(UWORD sjis)
+		global	NEC98_SJIS2JIS_FAR
+NEC98_SJIS2JIS_FAR:
+		push	bp
+		mov	bp, sp
+arg_f sjis
+		mov	ax, [.sjis]
+		call	con_sjis2jis
+		pop	bp
+		retf	2
+
+%endif ; USE_PUTCRT_SEG60
+
 %endif		; INCLUDE_CONSEG60

@@ -524,6 +524,44 @@ _init_nec98_getshiftstate:
 
 segment HMA_TEXT
 
+; UBYTE ASMCFUNC get_crt_width(VOID)
+		global	_get_crt_width
+_get_crt_width:
+		push	ds
+		xor	ax, ax
+		mov	ds, ax
+
+		;xor	ah, ah
+		mov	al, [CRT_STS_FLAG]
+		test	al, 2
+		jz	.w80
+		mov	al, 40
+		jmp	short .end
+	.w80:
+		mov	al, 80
+	.end:
+		pop	ds
+		ret
+
+
+; UBYTE ASMCFUNC get_crt_height(VOID)
+		global	_get_crt_height
+_get_crt_height:
+		push	ds
+		mov	ax, 60h
+		mov	ds, ax
+
+;		xor	ah, ah
+		mov	al, [_scroll_bottom]
+		inc	al
+
+		pop	ds
+		ret
+
+;--------------------------------------
+
+%ifndef USE_PUTCRT_SEG60
+
 ; VOID ASMCFUNC set_curpos(UBYTE x, UBYTE y)
 		global	_set_curpos
 _set_curpos:
@@ -567,41 +605,6 @@ _update_cursor_view:
   .int18_and_exit:
 		int 18h
 		pop ds
-		ret
-
-
-; UBYTE ASMCFUNC get_crt_width(VOID)
-		global	_get_crt_width
-_get_crt_width:
-		push	ds
-		xor	ax, ax
-		mov	ds, ax
-
-		;xor	ah, ah
-		mov	al, [CRT_STS_FLAG]
-		test	al, 2
-		jz	.w80
-		mov	al, 40
-		jmp	short .end
-	.w80:
-		mov	al, 80
-	.end:
-		pop	ds
-		ret
-
-
-; UBYTE ASMCFUNC get_crt_height(VOID)
-		global	_get_crt_height
-_get_crt_height:
-		push	ds
-		mov	ax, 60h
-		mov	ds, ax
-
-;		xor	ah, ah
-		mov	al, [_scroll_bottom]
-		inc	al
-
-		pop	ds
 		ret
 
 
@@ -715,6 +718,8 @@ _clear_crt:
 		pop	bx
 		pop	bp
 		ret
+
+%endif ; !USE_PUTCRT_SEG60
 
 
 ; UBYTE FAR * ASMPASCAL nec98_programmable_key_table(unsigned index)

@@ -77,6 +77,9 @@ STATIC int iskanji2(unsigned char c)
 #endif
 
 
+#if 1
+# define sjis2jis(c) nec98_sjis2jis_far(c)
+#else
 STATIC UWORD sjis2jis(UWORD c)
 {
   UBYTE h = c >> 8;
@@ -107,6 +110,7 @@ STATIC UWORD sjis2jis(UWORD c)
 
   return ((UWORD)h << 8) | l;
 }
+#endif
 
 STATIC VOID put_func(UBYTE x, UBYTE y, UBYTE FAR *p)
 {
