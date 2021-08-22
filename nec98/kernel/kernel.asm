@@ -147,6 +147,10 @@ _promem_under16 db  0                   ; 0031h プロテクトメモリサイ�
                 global  _text_vram_segment
 _text_vram_segment  dw 0a000h           ; 0032h segment of Text RAM
 
+                resb    0068h - ($ - entry)
+                global  _auxspeed
+_auxspeed       db  0, 0                ; 0068h copy of MEMSW1,2: aux (com0) configuration
+
                 resb    006ch - ($ - entry)
                 global  _daua_list
 _daua_list      db  80h                 ; A: (SASI/IDE HD)
@@ -217,8 +221,9 @@ _disk_last_access_unit db 0             ; 0136h - last accessed disk unit number
 
 ;               resb    256 - ($ - entry)
 
+
 %if 1
-                resb    0fffh - ($ - entry)
+                resb    07ffh - ($ - entry)
                 global  _fd98_retract_hd_pending
 _fd98_retract_hd_pending db 0           ; a temporary solution: not compatible with MS-DOS
 
@@ -234,6 +239,24 @@ conseg60_begin:
                 %include "conseg60.asm"
 conseg60_end:
 ;--------
+
+
+; reserved area for RSDRV
+;--------
+                resb    17e0h - ($ - entry)
+
+                resb    17eeh - ($ - entry)
+                global _aux1speed, _aux2speed
+_aux1speed      db  0, 0                ; 17EE aux1 (com1) configuration
+_aux2speed      db  0, 0                ; 17F0 aux2 (com2) configuration
+
+                resb    1802h - ($ - entry)
+                global _rsdrv_seg
+_rsdrv_seg      dw  0                   ; 1802 segment of RSDRV.SYS
+
+                resb    1820h - ($ - entry)
+;--------
+
 
 ; some codes and data in IO.SYS area
 ;--------
