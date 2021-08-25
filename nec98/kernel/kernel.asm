@@ -32,6 +32,7 @@
                 %include "stacks.inc"
                 %include "ludivmul.inc"
 
+%define IN_KERNEL_ASM
                 %include "nec98cfg.inc"
 
 segment PSP
@@ -231,13 +232,23 @@ _fd98_retract_hd_pending db 0           ; a temporary solution: not compatible w
 
 ; some codes and data in IO.SYS area
 ;--------
-%define INCLUDE_CONSEG60
+%ifdef INCLUDE_CONKEY60
+		align	2
+		global	conkey60_begin
+		global	conkey60_end
+conkey60_begin:
+                %include "conkey60.asm"
+conkey60_end:
+%endif ; INCLUDE_CONKEY60
+
+%ifdef INCLUDE_CONSEG60
 		align	2
 		global	conseg60_begin
 		global	conseg60_end
 conseg60_begin:
                 %include "conseg60.asm"
 conseg60_end:
+%endif ; INCLUDE_CONSEG60
 ;--------
 
 

@@ -32,6 +32,7 @@
                 %include "stacks.inc"
                 %include "nec98cfg.inc"
 
+                %include "conkey60.asm"
                 %include "conseg60.asm"
 
 segment	_IO_FIXED_DATA

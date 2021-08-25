@@ -92,7 +92,7 @@ apisupt.obj:	$(KSRCD)apisupt.asm $(KSRCD)segs.inc			$(TARGET_LNK)
 asmsupt.obj:	$(KSRCD)asmsupt.asm $(KSRCD)segs.inc			$(TARGET_LNK)
 	$(ASSEMBLE)
 
-console.obj:	$(UKSRCD)console.asm $(KSRCD)io.inc $(UKSRCD)nec98cfg.inc $(UKSRCD)conseg60.asm			$(TARGET_LNK)
+console.obj:	$(UKSRCD)console.asm $(KSRCD)io.inc $(UKSRCD)nec98cfg.inc $(UKSRCD)conseg60.asm	$(UKSRCD)conkey60.asm			$(TARGET_LNK)
 	$(ASSEMBLE)
 
 cpu.obj:	$(KSRCD)cpu.asm  $(KSRCD)segs.inc $(TARGET_LNK)
@@ -119,7 +119,7 @@ io.obj:		$(UKSRCD)io.asm	    $(KSRCD)segs.inc $(HDRD)stacks.inc   $(TARGET_LNK)
 irqstack.obj:	$(UKSRCD)irqstack.asm $(KSRCD)segs.inc			$(TARGET_LNK)
 	$(ASSEMBLE)
 
-kernel.obj:	$(UKSRCD)kernel.asm  $(KSRCD)segs.inc $(KSRCD)ludivmul.inc $(UKSRCD)nec98cfg.inc $(UKSRCD)conseg60.asm $(UKSRCD)supseg60.asm	$(TARGET_LNK)
+kernel.obj:	$(UKSRCD)kernel.asm  $(KSRCD)segs.inc $(KSRCD)ludivmul.inc $(UKSRCD)nec98cfg.inc $(UKSRCD)conseg60.asm $(UKSRCD)conkey60.asm $(UKSRCD)supseg60.asm	$(TARGET_LNK)
 	$(ASSEMBLE)
 
 memdisk.obj:	$(KSRCD)memdisk.asm  $(KSRCD)segs.inc $(TARGET_LNK)

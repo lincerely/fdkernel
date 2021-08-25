@@ -8,6 +8,13 @@
 %define USE_PRIVATE_INTDC_STACK 1
 %define USE_PUTCRT_SEG60 1
 ;-------------------------------
+%ifdef IN_KERNEL_ASM
+	%define INCLUDE_CONSEG60 1
+	%define INCLUDE_CONKEY60 1
+	%define INCLUDE_SUPSEG60 1
+%endif
+;-------------------------------
+
 
 
 %define FAR_CON_DGROUP		PGROUP
