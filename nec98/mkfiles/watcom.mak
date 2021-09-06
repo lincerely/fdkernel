@@ -61,7 +61,7 @@ MATH_INSERT=+i4m
 # -3		optimization for 386 - given in CONFIG.MAK, not here
 #
 
-ALLCFLAGS=-I. -I..$(DIRSEP)..$(DIRSEP)hdr $(TARGETOPT) $(ALLCFLAGS)-zq-os-s-e5-j-zl-zp1-wx-we-zgf-zff-r -d1
+ALLCFLAGS=-I. -I..$(DIRSEP)..$(DIRSEP)hdr $(TARGETOPT) $(ALLCFLAGS)-zq-os-s-e5-j-zl-zp1-wx-we-zgf-zff -d1
 INITCFLAGS=$(ALLCFLAGS)-ntINIT_TEXT-gTGROUP-ndI
 CFLAGS=$(ALLCFLAGS)-ntHMA_TEXT
 
