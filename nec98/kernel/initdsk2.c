@@ -1110,7 +1110,7 @@ PartitionsField ScanForPrimaryPartitions(struct DriveParamS * driveParam,
                          PartitionsField partitionsToIgnore, int extendedPartNo)
 {
 /* todo: partitionsToIgnore - need ULONG for portablity, probably */
-  int partition_max = PARTITION_TYPE_NEC98;
+  int partition_max = PARTITION_TABLES_NEC98;
   int i;
   UBYTE ptype;
   struct CHS chs, end;
