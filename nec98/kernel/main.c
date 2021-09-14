@@ -297,11 +297,15 @@ STATIC void setup_int_vectors(void)
 #endif
     };
   struct vec *pvec;
-  struct lowvec FAR *plvec;
   int i;
 
+#if defined(IBMPC)
+{
+  struct lowvec FAR *plvec;
   for (plvec = intvec_table; plvec < intvec_table + 5; plvec++)
     plvec->isv = getvec(plvec->intno);
+}
+#endif
   for (i = 0x23; i <= 0x3f; i++)
     setvec(i, empty_handler);
 #if defined(NEC98)

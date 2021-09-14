@@ -589,7 +589,7 @@ no_nul_read:
 segment _LOWTEXT
 
 ;todo NEC98
-;%ifdef IBMPC
+%ifdef IBMPC
                 ; low interrupt vectors 10h,13h,15h,19h,1Bh
                 ; these need to be at 0070:0100 (see RBIL memory.lst)
                 global _intvec_table
@@ -608,7 +608,7 @@ _intvec_table:  db 10h
                 global _int1e_table
 _int1e_table:   times 0eh db 0
 
-;%endif ; IBMPC
+%endif ; IBMPC
 
 ;************************************************************       
 ; KERNEL FIXED DATA AREA 
